@@ -1,0 +1,7 @@
+{
+  "name": "cia-streams",
+  "compatibility_date": "2025-11-10",
+  "assets": {
+    "directory": "./dist"
+  }
+}
