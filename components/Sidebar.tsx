@@ -6,7 +6,7 @@ import type { EnrichedScheduledStream } from './ScheduledStreamCard';
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  onNavigate: (section: 'live' | 'scheduled' | 'credits' | 'apply' | 'favorites' | 'multistream' | 'share') => void;
+  onNavigate: (section: 'live' | 'scheduled' | 'credits' | 'apply' | 'favorites' | 'multistream' | 'share' | 'appTutorial') => void;
   activeView: 'live' | 'scheduled' | 'favorites' | 'multistream' | 'share';
   showApplyLink: boolean;
   hasFavorites: boolean;
@@ -68,7 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate, a
             </div>
           
           <button onClick={onClose} aria-label={t('close')}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -123,6 +123,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate, a
                     </button>
                 </li>
             )}
+            <li>
+                <button
+                  onClick={() => onNavigate('appTutorial')}
+                  className="w-full text-left rtl:text-right px-4 py-3 rounded-lg text-lg font-semibold hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                >
+                  {t('sidebarAppTutorial')}
+                </button>
+              </li>
             {showApplyLink && (
                <li>
                 <button

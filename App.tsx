@@ -19,6 +19,7 @@ import { useFavorites } from './hooks/useFavorites';
 import { EnrichedScheduledStream } from './components/ScheduledStreamCard';
 import { MultiStreamSelector } from './components/MultiStreamSelector';
 import { ShareStreamView, WindowData } from './components/ShareStreamView';
+import { TutorialModal } from './components/TutorialModal';
 
 // LanguageToggle Component
 const LanguageToggle: React.FC = () => {
@@ -301,6 +302,10 @@ const App: React.FC = () => {
   const [shareViewNextZIndex, setShareViewNextZIndex] = useState(100);
   const [shareViewExtraSpace, setShareViewExtraSpace] = useState(0);
 
+  // Tutorial Modal State
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  const [isTutorialDismissed, setIsTutorialDismissed] = useState(false);
+
 
   useEffect(() => {
     // Pick a random verse on mount
@@ -312,7 +317,26 @@ const App: React.FC = () => {
     setNotificationPermission(typeof Notification !== 'undefined' ? Notification.permission : null);
     const settingsLS = JSON.parse(localStorage.getItem('streamerNotifications') || '{}');
     setStreamerNotificationSettings(settingsLS);
+
+    // Tutorial Modal Logic
+    const dismissed = localStorage.getItem('tutorialDismissed') === 'true';
+    setIsTutorialDismissed(dismissed);
+    if (!dismissed) {
+        setIsTutorialOpen(true);
+    }
   }, []);
+
+  const handleTutorialClose = () => {
+    setIsTutorialOpen(false);
+    window.location.reload();
+  };
+  
+  const handleTutorialDismiss = () => {
+    localStorage.setItem('tutorialDismissed', 'true');
+    setIsTutorialDismissed(true);
+    setIsTutorialOpen(false);
+    window.location.reload();
+  };
   
   const updateStreamerNotificationSetting = async (streamerName: string, enabled: boolean) => {
     if (enabled) { // Trying to enable
@@ -407,6 +431,17 @@ const App: React.FC = () => {
     return () => clearInterval(intervalId);
   }, [fetchData]);
   
+  useEffect(() => {
+    if (isSidebarOpen) {
+      document.body.classList.add('sidebar-open');
+    } else {
+      document.body.classList.remove('sidebar-open');
+    }
+    return () => {
+      document.body.classList.remove('sidebar-open');
+    };
+  }, [isSidebarOpen]);
+
   useEffect(() => {
     const rootEl = document.getElementById('root');
     if (!rootEl) return;
@@ -646,13 +681,15 @@ const App: React.FC = () => {
     setScheduleStats(stats);
   }, []);
   
-  const handleSidebarNavigate = (section: 'live' | 'scheduled' | 'credits' | 'apply' | 'favorites' | 'multistream' | 'share') => {
+  const handleSidebarNavigate = (section: 'live' | 'scheduled' | 'credits' | 'apply' | 'favorites' | 'multistream' | 'share' | 'appTutorial') => {
     if (section === 'live' || section === 'scheduled' || section === 'favorites' || section === 'multistream' || section === 'share') {
         changeView(section);
     } else if (section === 'credits') {
       document.getElementById('credits-footer')?.scrollIntoView({ behavior: 'smooth' });
     } else if (section === 'apply') {
         document.getElementById('apply-section')?.scrollIntoView({ behavior: 'smooth' });
+    } else if (section === 'appTutorial') {
+        setIsTutorialOpen(true);
     }
     
     setIsSidebarOpen(false);
@@ -707,6 +744,12 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full transition-colors duration-300" style={{ color: 'var(--text-body)' }}>
+      <TutorialModal
+        isOpen={isTutorialOpen}
+        onClose={handleTutorialClose}
+        onDismiss={handleTutorialDismiss}
+        isDismissed={isTutorialDismissed}
+      />
       <div 
         className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setIsSidebarOpen(false)}
