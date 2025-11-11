@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://cia-streams.pages.dev/public/sitemap.xml
