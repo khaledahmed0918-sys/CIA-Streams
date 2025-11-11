@@ -46,6 +46,9 @@
       document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     </script>
     <style>
+      html {
+        height: 100%;
+      }
       :root {
         --bg-light-1: #e0c3fc;
         --bg-light-2: #8ec5fc;
@@ -77,6 +80,7 @@
         --text-streamer: #e5e7eb;
       }
       body {
+        min-height: 100%;
         font-family: 'Inter', sans-serif;
         background-color: var(--bg-light-1);
         background-image: linear-gradient(var(--bg-light-dir), var(--bg-light-1), var(--bg-light-2));

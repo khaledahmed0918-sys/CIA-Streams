@@ -65,7 +65,7 @@ export const KICK_STREAMERS: { username: string; tags: string[]; character: stri
   { username: '4speed', tags: ['CIA', 'SOG', 'Trainer'], character: 'Ahmed Alsbammedi' },
 ];
 
-export const POLLING_INTERVAL_SECONDS: number = 90;
+export const POLLING_INTERVAL_SECONDS: number = 180;
 
 export const ENABLE_APPLY_SECTION = false;
 

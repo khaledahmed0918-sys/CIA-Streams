@@ -707,8 +707,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full transition-colors duration-300" style={{ color: 'var(--text-body)' }}>
-      <div className="fixed top-0 left-0 w-full h-full -z-10"></div>
-      
       <div 
         className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setIsSidebarOpen(false)}
