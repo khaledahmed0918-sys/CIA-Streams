@@ -62,6 +62,7 @@ export const KICK_STREAMERS: { username: string; tags: string[]; character: stri
   { username: 'abdlatef1', tags: ['CIA', 'SOG', 'Trainer'], character: 'Abdlatef Alanazi' },
   { username: 'kingback23', tags: ['CIA', 'SOG', 'Trainer'], character: 'Ammar Adil' },
   { username: 'vbaz', tags: ['CIA', 'SOG', 'Trainer'], character: 'Baz Stark' },
+  { username: '4speed', tags: ['CIA', 'SOG', 'Trainer'], character: 'Ahmed Alsbammedi' },
 ];
 
 export const POLLING_INTERVAL_SECONDS: number = 90;
