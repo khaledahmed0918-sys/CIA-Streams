@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchChannelStatuses } from './services/kickService';
 import type { KickApiResponse, Channel } from './types';
@@ -306,6 +308,35 @@ const App: React.FC = () => {
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
   const [isTutorialDismissed, setIsTutorialDismissed] = useState(false);
 
+  useEffect(() => {
+    const checkVersion = async () => {
+      try {
+        const res = await fetch('/version.txt', { cache: 'no-store' });
+        if (!res.ok) {
+          if (res.status !== 404) {
+            console.error(`Failed to fetch version.txt: ${res.statusText}`);
+          }
+          return;
+        }
+        const latestVersion = (await res.text()).trim();
+        const currentVersion = localStorage.getItem('site-version');
+
+        if (currentVersion !== latestVersion) {
+          localStorage.setItem('site-version', latestVersion);
+          if (currentVersion) {
+            window.location.reload();
+          }
+        }
+      } catch (err) {
+        console.error('Version check failed:', err);
+      }
+    };
+
+    checkVersion();
+    const intervalId = setInterval(checkVersion, 5 * 60 * 1000); // Check every 5 minutes
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     // Pick a random verse on mount
@@ -973,6 +1004,7 @@ const App: React.FC = () => {
                           streamerData={streamerData}
                           onCardClick={setSelectedStreamer}
                           streamerNotificationSettings={streamerNotificationSettings}
+                          // FIX: `onNotificationToggle` was not defined in this scope. Use `updateStreamerNotificationSetting` instead.
                           onNotificationToggle={updateStreamerNotificationSetting}
                           notificationPermission={notificationPermission}
                           onStatsUpdate={handleScheduleStatsUpdate}
