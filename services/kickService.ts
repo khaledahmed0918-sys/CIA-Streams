@@ -27,7 +27,7 @@ const extractUsername = (input: string): string => {
  * @returns A Promise that resolves to a Channel object.
  */
 const fetchKickChannel = async (originalUsername: string): Promise<Channel> => {
-  const url = `https://kick.com/api/v1/channels/${originalUsername}`;
+  const url = `https://kick.com/api/v1/channels/${originalUsername}?_=${Date.now()}`;
   try {
     const response = await fetch(url);
 
@@ -49,7 +49,7 @@ const fetchKickChannel = async (originalUsername: string): Promise<Channel> => {
     let lastStreamStartTime = null;
     if (!isLive) {
       try {
-        const videosUrl = `https://kick.com/api/v2/channels/${originalUsername}/videos`;
+        const videosUrl = `https://kick.com/api/v2/channels/${originalUsername}/videos?_=${Date.now()}`;
         // Using a CORS proxy to bypass client-side fetch restrictions.
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(videosUrl)}`;
         const videosResponse = await fetch(proxyUrl);

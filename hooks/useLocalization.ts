@@ -12,9 +12,7 @@ interface LocalizationContextType {
 const LocalizationContext = createContext<LocalizationContextType | undefined>(undefined);
 
 export const LocalizationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [language, setLanguageState] = useState<Language>(() => {
-    return (localStorage.getItem('language') as Language) || 'en';
-  });
+  const [language, setLanguageState] = useState<Language>('en');
   const [translations, setTranslations] = useState<{ [key in Language]?: Translations }>({});
   const [isLoading, setIsLoading] = useState(true);
 
@@ -22,7 +20,6 @@ export const LocalizationProvider: React.FC<{ children: ReactNode }> = ({ childr
     const root = document.documentElement;
     root.lang = language;
     root.dir = language === 'ar' ? 'rtl' : 'ltr';
-    localStorage.setItem('language', language);
   }, [language]);
 
   useEffect(() => {

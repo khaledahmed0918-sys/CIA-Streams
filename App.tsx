@@ -2,6 +2,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchChannelStatuses } from './services/kickService';
 import type { KickApiResponse, Channel } from './types';
@@ -305,8 +307,7 @@ const App: React.FC = () => {
   const [shareViewExtraSpace, setShareViewExtraSpace] = useState(0);
 
   // Tutorial Modal State
-  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
-  const [isTutorialDismissed, setIsTutorialDismissed] = useState(false);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(true);
 
   useEffect(() => {
     const checkVersion = async () => {
@@ -348,25 +349,10 @@ const App: React.FC = () => {
     setNotificationPermission(typeof Notification !== 'undefined' ? Notification.permission : null);
     const settingsLS = JSON.parse(localStorage.getItem('streamerNotifications') || '{}');
     setStreamerNotificationSettings(settingsLS);
-
-    // Tutorial Modal Logic
-    const dismissed = localStorage.getItem('tutorialDismissed') === 'true';
-    setIsTutorialDismissed(dismissed);
-    if (!dismissed) {
-        setIsTutorialOpen(true);
-    }
   }, []);
 
   const handleTutorialClose = () => {
     setIsTutorialOpen(false);
-    window.location.reload();
-  };
-  
-  const handleTutorialDismiss = () => {
-    localStorage.setItem('tutorialDismissed', 'true');
-    setIsTutorialDismissed(true);
-    setIsTutorialOpen(false);
-    window.location.reload();
   };
   
   const updateStreamerNotificationSetting = async (streamerName: string, enabled: boolean) => {
@@ -778,8 +764,7 @@ const App: React.FC = () => {
       <TutorialModal
         isOpen={isTutorialOpen}
         onClose={handleTutorialClose}
-        onDismiss={handleTutorialDismiss}
-        isDismissed={isTutorialDismissed}
+        onDismiss={handleTutorialClose}
       />
       <div 
         className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}

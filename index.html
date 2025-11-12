@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
     <title>CIA Streams</title>
     <meta name="keywords" content="سي اي اي, CIA, cia, Cia, cIa, ciA, CIa, cIA, CiA, موقع, تطبيق, MT, mt, Mt, mT, Mystery, Town, Mystery Town, MTRP, Grand, Theft, Autot, GTA, game, streamer, stramers, بث, بثوث, بثوث السي اي اي, CIA streams, موقع بثوث ال CIA, موقع الـ CIA, بثوث السي اي اي, بثوث ال CIA">
     <meta name="description" content="Simple site to see all CIA Live Stream in MTRP.✨">
@@ -38,15 +35,15 @@
     <link rel="apple-touch-icon" href="https://i.postimg.cc/QNW4B8KQ/00WZrbng.png">
     <script>
       // On page load or when changing themes, best to add inline in `head` to avoid FOUC
-      if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         document.documentElement.classList.add('dark')
       } else {
         document.documentElement.classList.remove('dark')
       }
       
-      const lang = localStorage.getItem('language') || 'en';
-      document.documentElement.lang = lang;
-      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+      // Set default lang/dir
+      document.documentElement.lang = 'en';
+      document.documentElement.dir = 'ltr';
     </script>
     <style>
       html {

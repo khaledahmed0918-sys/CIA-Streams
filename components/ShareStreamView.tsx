@@ -21,12 +21,6 @@ export interface Layout {
     extraSpace: number;
 }
 
-interface SavedLayout {
-    id: string;
-    name: string;
-    code: string;
-}
-
 interface CodePayload {
     v: number;
     name: string;
@@ -34,8 +28,6 @@ interface CodePayload {
     layout: Layout;
     expiresAt: number | null;
 }
-
-const STORAGE_KEY_SAVED_LAYOUTS = 'cia_saved_layouts';
 
 const keyMap: { [key: string]: string } = {
     windows: 'w', extraSpace: 'es', id: 'i', zIndex: 'z', position: 'p', size: 's', 
@@ -175,28 +167,10 @@ const LayoutManager: React.FC<{
     const { t } = useLocalization();
     const [expiration, setExpiration] = useState<number | null>(null);
     const [generatedCode, setGeneratedCode] = useState<string | null>(null);
-    const [layoutName, setLayoutName] = useState('');
     const [codeToApply, setCodeToApply] = useState('');
-    const [savedLayouts, setSavedLayouts] = useState<SavedLayout[]>([]);
-    const [deletingLayoutId, setDeletingLayoutId] = useState<string | null>(null);
-    const saveNameInputRef = useRef<HTMLInputElement>(null);
     
-    useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY_SAVED_LAYOUTS);
-        if (stored) {
-            try {
-                setSavedLayouts(JSON.parse(stored));
-            } catch (e) {
-                console.error("Failed to parse saved layouts", e);
-                localStorage.removeItem(STORAGE_KEY_SAVED_LAYOUTS);
-            }
-        }
-    }, []);
-
     const generateCode = useCallback(() => {
-        const payload: Omit<CodePayload, 'v'> = {
-            name: layoutName.trim() || `Layout @ ${new Date().toLocaleTimeString()}`,
-            createdAt: Date.now(),
+        const payload: Omit<CodePayload, 'v' | 'name' | 'createdAt'> = {
             layout: currentLayout,
             expiresAt: expiration ? Date.now() + expiration * 60 * 1000 : null,
         };
@@ -214,7 +188,7 @@ const LayoutManager: React.FC<{
         
         const code = btoa(binaryString);
         setGeneratedCode(code);
-    }, [currentLayout, expiration, layoutName]);
+    }, [currentLayout, expiration]);
 
     const handleApplyCode = useCallback((code: string) => {
         if (!code.trim()) return;
@@ -251,54 +225,6 @@ const LayoutManager: React.FC<{
         }
     }, [onApplyLayout, t]);
     
-    const handleSaveLayout = useCallback(() => {
-        if (!layoutName.trim()) {
-            saveNameInputRef.current?.focus();
-            return;
-        }
-        const payload: Omit<CodePayload, 'v'> = {
-            name: layoutName.trim(),
-            createdAt: Date.now(),
-            layout: currentLayout,
-            expiresAt: null, // Saved layouts don't expire
-        };
-        const minifiedPayload = { v: 2, ...minifyObject(payload) };
-        const jsonString = JSON.stringify(minifiedPayload);
-        const compressed = pako.deflate(jsonString); // returns Uint8Array
-
-        let binaryString = '';
-        for (let i = 0; i < compressed.length; i++) {
-            binaryString += String.fromCharCode(compressed[i]);
-        }
-        const code = btoa(binaryString);
-        
-        const newLayout: SavedLayout = {
-            id: `layout-${Date.now()}`,
-            name: layoutName.trim(),
-            code,
-        };
-        const newSavedLayouts = [...savedLayouts, newLayout];
-        setSavedLayouts(newSavedLayouts);
-        localStorage.setItem(STORAGE_KEY_SAVED_LAYOUTS, JSON.stringify(newSavedLayouts));
-        setLayoutName('');
-    }, [layoutName, currentLayout, savedLayouts]);
-
-    const handleDeleteLayout = useCallback((layoutId: string, layoutName: string) => {
-        if (deletingLayoutId) return;
-
-        if (window.confirm(t('confirmDeleteLayout', { name: layoutName }))) {
-            setDeletingLayoutId(layoutId);
-            setTimeout(() => {
-                setSavedLayouts(prev => {
-                    const newLayouts = prev.filter(l => l.id !== layoutId);
-                    localStorage.setItem(STORAGE_KEY_SAVED_LAYOUTS, JSON.stringify(newLayouts));
-                    return newLayouts;
-                });
-                setDeletingLayoutId(null);
-            }, 300);
-        }
-    }, [deletingLayoutId, t]);
-    
     const expirationOptions = [
         { label: t('never'), value: null }, { label: t('minutes', { count: 1 }), value: 1 },
         { label: t('minutes', { count: 5 }), value: 5 }, { label: t('minutes', { count: 15 }), value: 15 },
@@ -313,8 +239,7 @@ const LayoutManager: React.FC<{
                   {t('addStreamWindow')}
               </button>
               
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm space-y-3">
-                  <input ref={saveNameInputRef} type="text" value={layoutName} onChange={e => setLayoutName(e.target.value)} placeholder={t('layoutName')} className="w-full py-2 px-3 bg-black/5 rounded-lg border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-400 dark:text-white dark:bg-white/5 dark:placeholder-gray-400" />
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm space-y-3 flex flex-col justify-center">
                    <div className="flex items-center gap-3">
                         {!generatedCode ? (
                             <button onClick={generateCode} className="flex-grow rounded-lg bg-blue-500/80 text-white px-4 py-2 font-semibold hover:bg-blue-500/100 transition-colors">
@@ -336,7 +261,6 @@ const LayoutManager: React.FC<{
                           {expirationOptions.map(opt => <option key={opt.label} value={opt.value ?? ''}>{opt.label}</option>)}
                       </select>
                    </div>
-                   <button onClick={handleSaveLayout} className="w-full rounded-lg bg-green-500/80 text-white px-4 py-2 font-semibold hover:bg-green-500/100 transition-colors">{t('saveLayout')}</button>
               </div>
 
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm space-y-2 flex flex-col justify-center">
@@ -347,33 +271,6 @@ const LayoutManager: React.FC<{
                   </div>
               </div>
           </div>
-          {savedLayouts.length > 0 && (
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                  <h3 className="font-semibold mb-2">{t('savedLayouts')}</h3>
-                  <ul className="space-y-2 max-h-40 overflow-y-auto">
-                      {savedLayouts.map(layout => (
-                          <li 
-                              key={layout.id} 
-                              className={`flex items-center justify-between gap-2 p-2 rounded-lg bg-black/10 dark:bg-white/5 transition-all duration-300 ${deletingLayoutId === layout.id ? 'animate-item-pop-out' : ''}`}
-                          >
-                              <span className="font-medium truncate">{layout.name}</span>
-                              <div className="flex items-center gap-2">
-                                  <button onClick={() => handleApplyCode(layout.code)} className="text-xs font-semibold hover:underline">{t('load')}</button>
-                                  <button 
-                                    onClick={() => handleDeleteLayout(layout.id, layout.name)} 
-                                    className="p-1 rounded-full text-red-400 hover:bg-red-500/20 transition-colors"
-                                    title={t('delete')}
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                  </button>
-                              </div>
-                          </li>
-                      ))}
-                  </ul>
-              </div>
-          )}
       </div>
     );
 };

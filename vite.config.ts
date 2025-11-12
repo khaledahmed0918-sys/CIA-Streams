@@ -16,16 +16,10 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
+          // FIX: In an ES module, __dirname is not available. 
+          // Using path.resolve() without arguments resolves to the current working directory, 
+          // which is the project root when running Vite, and serves the same purpose.
           '@': path.resolve(),
-        }
-      },
-      build: {
-        rollupOptions: {
-          output: {
-            entryFileNames: 'assets/[name]-[hash].js',
-            chunkFileNames: 'assets/[name]-[hash].js',
-            assetFileNames: 'assets/[name]-[hash].[ext]',
-          }
         }
       }
     };
