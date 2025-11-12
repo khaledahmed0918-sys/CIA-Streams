@@ -229,7 +229,7 @@ const Footer: React.FC = () => {
             <div className="flex justify-center items-start gap-12 md:gap-24">
                 {/* Mohammed */}
                 <div className="flex flex-col items-center gap-3">
-                    <p className="font-bold text-lg">Mohammed</p>
+                    <p className="font-bold text-lg">Dev Mohammed</p>
                     <div className="flex items-center gap-3">
                         <Tooltip text={copiedDiscordId === '221.k' ? t('discordIdCopied') : t('copyDiscordId')}>
                             <button onClick={() => handleDiscordCopy('221.k')} className="p-2 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 transition-colors">
