@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { fetchChannelStatuses } from './services/kickService';
 import type { KickApiResponse, Channel } from './types';
@@ -229,7 +224,7 @@ const Footer: React.FC = () => {
             <div className="flex justify-center items-start gap-12 md:gap-24">
                 {/* Mohammed */}
                 <div className="flex flex-col items-center gap-3">
-                    <p className="font-bold text-lg">Dev Mohammed</p>
+                    <p className="font-bold text-lg">Mohammed</p>
                     <div className="flex items-center gap-3">
                         <Tooltip text={copiedDiscordId === '221.k' ? t('discordIdCopied') : t('copyDiscordId')}>
                             <button onClick={() => handleDiscordCopy('221.k')} className="p-2 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 transition-colors">
@@ -260,14 +255,26 @@ const Footer: React.FC = () => {
     );
 };
 
+const CACHED_STREAMER_DATA_KEY = 'cachedStreamerData';
 
 const App: React.FC = () => {
   const { t } = useLocalization();
-  const [streamerData, setStreamerData] = useState<KickApiResponse | null>(null);
+  const [streamerData, setStreamerData] = useState<KickApiResponse | null>(() => {
+    try {
+      const cachedData = localStorage.getItem(CACHED_STREAMER_DATA_KEY);
+      if (cachedData) {
+        return JSON.parse(cachedData);
+      }
+      return null;
+    } catch (e) {
+      console.error("Failed to parse cached data", e);
+      return null;
+    }
+  });
   const prevStreamerDataRef = useRef<KickApiResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!streamerData);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(streamerData ? new Date(streamerData.checked_at) : null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortOption, setSortOption] = useState<'status' | 'viewers_desc' | 'live_duration_desc' | 'last_seen_desc'>('status');
@@ -307,7 +314,7 @@ const App: React.FC = () => {
   const [shareViewExtraSpace, setShareViewExtraSpace] = useState(0);
 
   // Tutorial Modal State
-  const [isTutorialOpen, setIsTutorialOpen] = useState(true);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
 
   useEffect(() => {
     const checkVersion = async () => {
@@ -349,9 +356,25 @@ const App: React.FC = () => {
     setNotificationPermission(typeof Notification !== 'undefined' ? Notification.permission : null);
     const settingsLS = JSON.parse(localStorage.getItem('streamerNotifications') || '{}');
     setStreamerNotificationSettings(settingsLS);
+
+    // Check if the tutorial has been dismissed before
+    const hasDismissed = localStorage.getItem('tutorialDismissed');
+    if (hasDismissed !== 'true') {
+      // Use a timeout to avoid showing the modal too abruptly on first load
+      const timer = setTimeout(() => setIsTutorialOpen(true), 1500);
+      return () => clearTimeout(timer);
+    }
   }, []);
 
   const handleTutorialClose = () => {
+    // This function is for "Got It", which implies the user read it.
+    localStorage.setItem('tutorialDismissed', 'true');
+    setIsTutorialOpen(false);
+  };
+  
+  const handleTutorialDismiss = () => {
+    // This is for the explicit "Dismiss" button
+    localStorage.setItem('tutorialDismissed', 'true');
     setIsTutorialOpen(false);
   };
   
@@ -416,7 +439,10 @@ const App: React.FC = () => {
   }, [streamerData]);
 
   const fetchData = useCallback(async () => {
-    setIsLoading(true);
+    // Only set loading to true if there's no cached data to show
+    if (!streamerData) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const data = await fetchChannelStatuses(KICK_STREAMERS);
@@ -433,6 +459,7 @@ const App: React.FC = () => {
       prevStreamerDataRef.current = data;
 
       setStreamerData(data);
+      localStorage.setItem(CACHED_STREAMER_DATA_KEY, JSON.stringify(data));
       setLastUpdated(new Date(data.checked_at));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred.');
@@ -440,7 +467,7 @@ const App: React.FC = () => {
     } finally {
         setIsLoading(false);
     }
-  }, [t]);
+  }, [t, streamerData]);
 
   useEffect(() => {
     fetchData();
@@ -764,7 +791,7 @@ const App: React.FC = () => {
       <TutorialModal
         isOpen={isTutorialOpen}
         onClose={handleTutorialClose}
-        onDismiss={handleTutorialClose}
+        onDismiss={handleTutorialDismiss}
       />
       <div 
         className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}

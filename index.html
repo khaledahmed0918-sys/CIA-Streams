@@ -6,7 +6,7 @@
     <meta name="description" content="Simple site to see all CIA Live Stream in MTRP.✨">
     <meta name="google-site-verification" content="5rG5Nq_KOdCbm9APppWMYNHr6Jtf2F70V6qyosQyFW4" />
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" href="https://i.postimg.cc/QNW4B8KQ/00WZrbng.png" />
@@ -29,10 +29,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
-    <!-- iOS PWA setup -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="https://i.postimg.cc/QNW4B8KQ/00WZrbng.png">
     <script>
       // On page load or when changing themes, best to add inline in `head` to avoid FOUC
       if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -44,10 +40,19 @@
       // Set default lang/dir
       document.documentElement.lang = 'en';
       document.documentElement.dir = 'ltr';
+
+      // iOS PWA setup - conditionally inject meta tags for iOS devices
+      if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        document.write('<meta name="apple-mobile-web-app-capable" content="yes">');
+        document.write('<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">');
+        document.write('<meta name="apple-mobile-web-app-title" content="CIA Streams">');
+        document.write('<link rel="apple-touch-icon" href="https://i.postimg.cc/QNW4B8KQ/00WZrbng.png">');
+      }
     </script>
     <style>
       html {
-        height: 100%;
+        min-height: 100%;
+        overflow-x: hidden;
       }
       :root {
         --bg-light-1: #e0c3fc;

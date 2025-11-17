@@ -72,10 +72,18 @@ const Step: React.FC<{
 export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose, onDismiss }) => {
   const { language: initialAppLang } = useLocalization();
   const [lang, setLang] = useState<'en' | 'ar'>(initialAppLang);
+  const [showDismiss, setShowDismiss] = useState(false);
 
   useEffect(() => {
     setLang(initialAppLang);
   }, [initialAppLang]);
+
+  useEffect(() => {
+    if (isOpen) {
+      const hasDismissed = localStorage.getItem('tutorialDismissed');
+      setShowDismiss(hasDismissed !== 'true');
+    }
+  }, [isOpen]);
 
   if (!isOpen) {
     return null;
@@ -139,13 +147,15 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose, o
         
         {/* Footer */}
         <footer className="p-4 mt-auto flex-shrink-0 flex justify-end gap-4">
-            <button 
-                onClick={onDismiss}
-                className="px-6 py-2 rounded-[30px] font-semibold transition-colors bg-black/10 dark:bg-white/10 backdrop-blur-sm hover:bg-black/20 dark:hover:bg-white/20"
-                style={{ background: 'rgba(255, 255, 255, 0.35)' }}
-            >
-                {t('dismiss')}
-            </button>
+            {showDismiss && (
+              <button 
+                  onClick={onDismiss}
+                  className="px-6 py-2 rounded-[30px] font-semibold transition-colors bg-black/10 dark:bg-white/10 backdrop-blur-sm hover:bg-black/20 dark:hover:bg-white/20"
+                  style={{ background: 'rgba(255, 255, 255, 0.35)' }}
+              >
+                  {t('dismiss')}
+              </button>
+            )}
             <button 
                 onClick={onClose}
                 className="px-6 py-2 rounded-[30px] font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors"
