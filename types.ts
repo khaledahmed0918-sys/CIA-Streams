@@ -1,3 +1,4 @@
+
 export interface Channel {
   username: string;
   display_name: string;
@@ -19,6 +20,7 @@ export interface Channel {
   banner_image: string | null;
   live_category: string | null;
   social_links?: { [platform: string]: string };
+  isLoading?: boolean;
 }
 
 export interface KickApiResponse {

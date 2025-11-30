@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { Channel } from './types';
 import { useLocalization } from './hooks/useLocalization';
@@ -41,14 +42,14 @@ const FavoriteStar: React.FC<{
         <div className="group/star relative z-20">
             <button
                 onClick={toggle}
-                className={`p-2 rounded-full transition-transform duration-200 ease-in-out active:scale-90 ${isFavorite ? 'text-yellow-400' : 'text-gray-400 hover:text-white'} ${isClicked ? 'animate-star-pop' : ''}`}
+                className={`p-2 rounded-full transition-transform duration-200 ease-in-out active:scale-90 ${isFavorite ? 'text-yellow-400' : 'text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white'} ${isClicked ? 'animate-star-pop' : ''}`}
                 aria-label={tooltipText}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
             </button>
-            <span className="absolute top-full mt-2 right-0 rtl:right-auto rtl:left-0 scale-0 group-hover/star:scale-100 rounded bg-gray-800 p-2 text-xs text-white transition-all w-max max-w-xs text-center z-20">
+            <span className="absolute top-full mt-2 right-0 rtl:right-auto rtl:left-0 scale-0 group-hover/star:scale-100 rounded bg-gray-900 p-2 text-xs text-white transition-all w-max max-w-xs text-center z-20">
                 {tooltipText}
             </span>
         </div>
@@ -85,7 +86,7 @@ const NotificationBell: React.FC<{
     <div className="group/bell relative z-20">
       <button 
         onClick={toggleSubscription} 
-        className={`p-2 rounded-full transition-transform duration-200 ease-in-out active:scale-90 ${isSubscribed ? 'text-yellow-400' : 'text-gray-400 hover:text-white'} ${isClicked ? 'animate-bell-ring' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
+        className={`p-2 rounded-full transition-transform duration-200 ease-in-out active:scale-90 ${isSubscribed ? 'text-yellow-400' : 'text-gray-600 hover:text-black dark:text-gray-400 dark:hover:text-white'} ${isClicked ? 'animate-bell-ring' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
         aria-label={tooltipText}
         disabled={notificationPermission === 'denied' && !isSubscribed}
       >
@@ -99,7 +100,7 @@ const NotificationBell: React.FC<{
           </svg>
         )}
       </button>
-      <span className="absolute top-full mt-2 right-0 rtl:right-auto rtl:left-0 scale-0 group-hover/bell:scale-100 rounded bg-gray-800 p-2 text-xs text-white transition-all w-max max-w-xs text-center z-20">
+      <span className="absolute top-full mt-2 right-0 rtl:right-auto rtl:left-0 scale-0 group-hover/bell:scale-100 rounded bg-gray-900 p-2 text-xs text-white transition-all w-max max-w-xs text-center z-20">
         {tooltipText}
       </span>
     </div>
@@ -109,7 +110,7 @@ const NotificationBell: React.FC<{
 const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, children }) => (
   <div className="group/tooltip relative">
     {children}
-    <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 scale-0 rounded bg-gray-800 p-2 text-xs text-white transition-all group-hover/tooltip:scale-100 dark:bg-gray-900 w-max max-w-xs text-center z-50">
+    <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 scale-0 rounded bg-gray-900 p-2 text-xs text-white transition-all group-hover/tooltip:scale-100 dark:bg-gray-900 w-max max-w-xs text-center z-50">
       {text}
     </span>
   </div>
@@ -119,16 +120,16 @@ const StatusBadge: React.FC<{ isLive: boolean; viewerCount: number | null; categ
   const { t } = useLocalization();
   return (
     <div
-      className="absolute left-[-0.5rem] top-[-0.5rem] rtl:left-auto rtl:right-4 flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1.5 text-xs font-semibold backdrop-blur-sm z-10"
+      className="absolute left-[-0.5rem] top-[-0.5rem] rtl:left-auto rtl:right-4 flex items-center gap-2 rounded-full border border-white/10 bg-black/80 px-3 py-1.5 text-xs font-semibold backdrop-blur-sm z-10"
       aria-label={isLive ? t('live') : t('offline')}
       role="status"
     >
       <span className={`h-2.5 w-2.5 rounded-full ${isLive ? 'bg-green-400 animate-pulse-glow pulse-green' : 'bg-red-500 animate-offline-glow'}`}></span>
-      <span className="flex-shrink-0">{isLive ? t('live') : t('offline')}</span>
+      <span className="flex-shrink-0 text-white">{isLive ? t('live') : t('offline')}</span>
       {isLive && viewerCount !== null && (
         <>
           <span className="text-white/30">|</span>
-          <div className="flex items-center gap-1 text-white/80 flex-shrink-0">
+          <div className="flex items-center gap-1 text-white/90 flex-shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
               <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.022 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
@@ -141,7 +142,7 @@ const StatusBadge: React.FC<{ isLive: boolean; viewerCount: number | null; categ
         <>
             <span className="text-white/30">|</span>
             <Tooltip text={category}>
-                <span className="truncate max-w-[100px] text-white/80">{category}</span>
+                <span className="truncate max-w-[100px] text-white/90">{category}</span>
             </Tooltip>
         </>
       )}
@@ -179,6 +180,23 @@ export const StreamerCard: React.FC<StreamerCardProps> = ({ streamer, onCardClic
     }
   };
 
+  if (streamer.isLoading) {
+    return (
+      <div className="rounded-2xl border border-black/10 dark:border-white/20 bg-white/40 dark:bg-white/5 p-5 shadow-lg backdrop-blur-lg animate-pulse min-h-[160px]">
+          <div className="absolute left-4 top-4 rtl:left-auto rtl:right-4 h-8 w-24 rounded-full bg-black/10 dark:bg-white/10"></div>
+          <div className="flex items-center gap-4 mt-8">
+              <div className="h-16 w-16 rounded-full bg-black/10 dark:bg-white/10 shrink-0"></div>
+              <div className="flex-1 space-y-3">
+                  <div className="h-4 w-3/4 rounded bg-black/10 dark:bg-white/10"></div>
+                  <div className="h-3 w-1/2 rounded bg-black/10 dark:bg-white/10"></div>
+              </div>
+          </div>
+          <div className="mt-4 h-3 w-full rounded bg-black/10 dark:bg-white/10"></div>
+          <div className="mt-2 h-3 w-2/3 rounded bg-black/10 dark:bg-white/10"></div>
+      </div>
+    );
+  }
+
   const tooltipText = streamer.is_live
     ? `${t('liveFor', { time: humanizeTime(streamer.live_since, language) })}`
     : streamer.error
@@ -187,7 +205,7 @@ export const StreamerCard: React.FC<StreamerCardProps> = ({ streamer, onCardClic
 
   return (
     <div 
-      className={`group relative min-h-[160px] rounded-2xl border border-white/10 bg-white/5 p-5 text-black shadow-lg backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-[1.02] hover:shadow-2xl dark:text-white dark:border-white/10 dark:bg-black/20 cursor-pointer ${justWentLive ? 'animate-live-glow' : ''}`}
+      className={`group relative min-h-[160px] rounded-2xl border border-black/10 dark:border-white/10 bg-white/40 dark:bg-white/5 p-5 text-black shadow-lg backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-[1.02] hover:shadow-2xl dark:text-white dark:bg-black/20 cursor-pointer ${justWentLive ? 'animate-live-glow' : ''}`}
       onClick={onCardClick}
       role="button"
       tabIndex={0}
@@ -195,7 +213,7 @@ export const StreamerCard: React.FC<StreamerCardProps> = ({ streamer, onCardClic
       style={{ background: 'var(--card-bg)' }}
     >
       <div className="streamer-card-text" style={{ color: 'var(--text-streamer)' }}>
-        <div className="absolute inset-0 bg-gradient-to-t from-white/10 to-transparent opacity-0 transition-opacity duration-700 group-hover:opacity-100 dark:from-white/5"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent dark:from-white/5 opacity-0 transition-opacity duration-700 group-hover:opacity-100"></div>
         
         <div className="relative z-10 flex flex-col h-full">
           <StatusBadge isLive={streamer.is_live} viewerCount={streamer.viewer_count} category={streamer.live_category} />
@@ -219,16 +237,16 @@ export const StreamerCard: React.FC<StreamerCardProps> = ({ streamer, onCardClic
                   <img
                     src={streamer.profile_pic || 'https://picsum.photos/200'}
                     alt={`${streamer.display_name}'s avatar`}
-                    className="h-16 w-16 rounded-full border-2 border-white/20 object-cover"
+                    className="h-16 w-16 rounded-full border-2 border-black/20 dark:border-white/20 object-cover"
                   />
               </a>
             </Tooltip>
             <div className="flex-1 overflow-hidden">
-              <h3 className="truncate text-xl font-bold">{streamer.display_name}</h3>
+              <h3 className="truncate text-xl font-bold text-black dark:text-white">{streamer.display_name}</h3>
               
               <div className="mt-1 space-y-1">
                 {firstCharacter && !streamer.error && (
-                  <p className="truncate text-sm opacity-70">
+                  <p className="truncate text-sm text-gray-800 dark:text-white dark:opacity-70">
                     <span className="font-semibold">{t('character')}</span> {firstCharacter}
                   </p>
                 )}
@@ -238,7 +256,7 @@ export const StreamerCard: React.FC<StreamerCardProps> = ({ streamer, onCardClic
           
           {(streamer.followers_count !== null && !streamer.error) && (
               <Tooltip text={`${streamer.followers_count.toLocaleString()} ${t('followers')}`}>
-                  <div className="mt-2 flex items-center gap-1.5 text-sm opacity-70">
+                  <div className="mt-2 flex items-center gap-1.5 text-sm text-gray-800 dark:text-white dark:opacity-70">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
                       </svg>
@@ -251,7 +269,7 @@ export const StreamerCard: React.FC<StreamerCardProps> = ({ streamer, onCardClic
           {streamer.tags && streamer.tags.length > 0 && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {streamer.tags.slice(0, 3).map(tag => (
-                <span key={tag} className="rounded-full bg-black/20 dark:bg-white/10 px-2.5 py-1 text-xs font-semibold">
+                <span key={tag} className="rounded-full bg-black/10 dark:bg-white/10 px-2.5 py-1 text-xs font-semibold text-black dark:text-white">
                   {tag}
                 </span>
               ))}
@@ -263,24 +281,24 @@ export const StreamerCard: React.FC<StreamerCardProps> = ({ streamer, onCardClic
           <div className="flex items-end justify-between gap-4 mt-2">
               <div className="flex-1 min-w-0 text-sm">
                   {streamer.error ? (
-                      <p className="truncate italic text-red-500">{t('failedToLoadData')}</p>
+                      <p className="truncate italic text-red-600 dark:text-red-400">{t('failedToLoadData')}</p>
                   ) : streamer.is_live && streamer.live_title ? (
                       <Tooltip text={streamer.live_title}>
-                          <p className="truncate cursor-default opacity-80">
+                          <p className="truncate cursor-default text-gray-900 dark:text-white dark:opacity-80">
                               {streamer.live_title}
                           </p>
                       </Tooltip>
                   ) : !streamer.is_live ? (
                       streamer.bio ? (
                           <Tooltip text={streamer.bio}>
-                              <p className="truncate italic opacity-70">"{streamer.bio}"</p>
+                              <p className="truncate italic text-gray-700 dark:text-white dark:opacity-70">"{streamer.bio}"</p>
                           </Tooltip>
                       ) : streamer.last_stream_start_time ? (
-                          <p className="opacity-70">
+                          <p className="text-gray-700 dark:text-white dark:opacity-70">
                               <span className="font-semibold">{t('lastSeen')}</span> {formatFullDateTime(streamer.last_stream_start_time, language)}
                           </p>
                       ) : (
-                          <p className="opacity-70 italic">{t('noRecentActivity')}</p>
+                          <p className="italic text-gray-700 dark:text-white dark:opacity-70">{t('noRecentActivity')}</p>
                       )
                   ) : null}
               </div>
@@ -288,11 +306,11 @@ export const StreamerCard: React.FC<StreamerCardProps> = ({ streamer, onCardClic
                 <Tooltip text={isCopied ? t('copied') : t('shareProfile')}>
                   <button
                     onClick={handleShareClick}
-                    className="flex-shrink-0 rounded-xl border border-white/10 bg-white/5 p-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 active:scale-95"
+                    className="flex-shrink-0 rounded-xl border border-black/10 dark:border-white/10 bg-black/10 dark:bg-white/5 p-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-black/20 dark:hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 active:scale-95 text-black dark:text-white"
                     aria-label={t('shareProfile')}
                   >
                     {isCopied ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
                         </svg>
                     ) : (
@@ -307,7 +325,7 @@ export const StreamerCard: React.FC<StreamerCardProps> = ({ streamer, onCardClic
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
-                    className="flex-shrink-0 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 active:scale-95"
+                    className="flex-shrink-0 rounded-xl border border-black/10 dark:border-white/10 bg-black/10 dark:bg-white/5 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-black/20 dark:hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 active:scale-95 text-black dark:text-white"
                 >
                     {t('link')}
                 </a>

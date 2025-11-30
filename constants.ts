@@ -1,3 +1,4 @@
+
 export const KICK_STREAMERS: { username: string; tags: string[]; character: string }[] = [
   { username: 'SXB', tags: ['CIA', 'CIA Leaders', 'DO Commander', 'DO'], character: 'Abdulsamad Alqurashi' },
   { username: 'https://kick.com/ysmo', tags: ['CIA', 'CIA Deputy', 'CIA Leaders'], character: 'Agent X' },
@@ -65,7 +66,7 @@ export const KICK_STREAMERS: { username: string; tags: string[]; character: stri
   { username: '4speed', tags: ['CIA', 'SOG', 'Trainer'], character: 'Ahmed Alsbammedi' },
 ];
 
-export const POLLING_INTERVAL_SECONDS: number = 180;
+export const POLLING_INTERVAL_SECONDS: number = 120;
 
 export const ENABLE_APPLY_SECTION = false;
 

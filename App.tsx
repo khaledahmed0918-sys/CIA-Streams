@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { fetchChannelStatuses } from './services/kickService';
+import { fetchKickChannel, extractUsername } from './services/kickService';
 import type { KickApiResponse, Channel } from './types';
 import { KICK_STREAMERS, POLLING_INTERVAL_SECONDS, ENABLE_APPLY_SECTION, ENABLE_SHARE_STREAM_VIEW } from './constants';
 import { StreamerCard } from './StreamerCard';
@@ -19,6 +19,111 @@ import { EnrichedScheduledStream } from './components/ScheduledStreamCard';
 import { MultiStreamSelector } from './components/MultiStreamSelector';
 import { ShareStreamView, WindowData } from './components/ShareStreamView';
 import { TutorialModal } from './components/TutorialModal';
+
+// --- Intro Animation Component ---
+const IntroAnimation: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+  const [stage, setStage] = useState<'falling' | 'assembled' | 'spinning' | 'opening'>('falling');
+  const [pieces, setPieces] = useState<Array<{x: number, y: number, r: number, delay: number, s: number}>>([]);
+  
+  // 8x8 Grid (64 pieces)
+  const rows = 8;
+  const cols = 8;
+  const totalPieces = rows * cols;
+
+  useEffect(() => {
+    // Generate random starting positions for pieces
+    const newPieces = Array.from({ length: totalPieces }).map(() => ({
+      x: (Math.random() - 0.5) * window.innerWidth * 1.5, // Explode from wide range
+      y: (Math.random() - 0.5) * window.innerHeight * 1.5,
+      r: (Math.random() - 0.5) * 720, // More rotation
+      delay: Math.random() * 0.5, // Random stagger
+      s: Math.random() * 1.5 + 0.5, // Random scale
+    }));
+    setPieces(newPieces);
+
+    // Timeline
+    // t1: Start assembling (slower speed)
+    const t1 = setTimeout(() => setStage('assembled'), 100); 
+    
+    // t2: Start spinning immediately after assembly. 
+    // Assembly transition is ~2.5s + max delay 0.5s = ~3s.
+    // 100ms (start) + 3000ms = 3100ms.
+    const t2 = setTimeout(() => setStage('spinning'), 3100); 
+    
+    // t3: Open curtains after spin (spin takes ~0.8s)
+    const t3 = setTimeout(() => setStage('opening'), 4000); 
+    
+    // t4: Remove component
+    const t4 = setTimeout(() => onComplete(), 5000); 
+
+    return () => {
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4);
+    };
+  }, [onComplete, totalPieces]);
+
+  // Image URL
+  const logoUrl = "https://i.postimg.cc/g2mhxC8q/vas_AGbotko-OBs.png";
+
+  return (
+    <div className={`fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none transition-opacity duration-500 ${stage === 'opening' ? 'bg-transparent' : 'bg-transparent'}`}>
+       {/* Left Curtain */}
+       <div 
+         className={`absolute top-0 left-0 h-full w-1/2 bg-[#141e30] transition-transform duration-1000 ease-[cubic-bezier(0.77,0,0.175,1)] origin-left z-0`}
+         style={{ transform: stage === 'opening' ? 'translateX(-100%)' : 'translateX(0)' }}
+       />
+       {/* Right Curtain */}
+       <div 
+         className={`absolute top-0 right-0 h-full w-1/2 bg-[#141e30] transition-transform duration-1000 ease-[cubic-bezier(0.77,0,0.175,1)] origin-right z-0`}
+         style={{ transform: stage === 'opening' ? 'translateX(100%)' : 'translateX(0)' }}
+       />
+
+       {/* Logo Container - Circular Cut */}
+       <div 
+          className={`relative z-10 w-64 h-64 transition-all ease-in-out rounded-full overflow-hidden`}
+          style={{ 
+            transform: stage === 'opening' ? 'scale(1.5) opacity(0)' : stage === 'spinning' ? 'rotate(360deg) scale(1.1)' : 'rotate(0deg)',
+            opacity: stage === 'opening' ? 0 : 1,
+            transitionDuration: stage === 'spinning' ? '0.8s' : '1s'
+          }}
+       >
+         {pieces.map((p, i) => {
+            const row = Math.floor(i / cols);
+            const col = i % cols;
+            const width = 100 / cols;
+            const height = 100 / rows;
+            const bgX = (col / (cols - 1)) * 100;
+            const bgY = (row / (rows - 1)) * 100;
+
+            const isFalling = stage === 'falling';
+
+            return (
+              <div 
+                key={i}
+                className="absolute shadow-sm"
+                style={{
+                  top: `${row * (100 / rows)}%`,
+                  left: `${col * (100 / cols)}%`,
+                  width: `${width}%`,
+                  height: `${height}%`,
+                  backgroundImage: `url(${logoUrl})`,
+                  backgroundSize: `${cols * 100}% ${rows * 100}%`, // Match grid size
+                  backgroundPosition: `${bgX}% ${bgY}%`,
+                  transition: `all 2.5s cubic-bezier(0.25, 1, 0.5, 1)`, // Slower, smoother assembly
+                  transform: isFalling 
+                    ? `translate3d(${p.x}px, ${p.y}px, 0) rotate(${p.r}deg) scale(${p.s})` 
+                    : `translate3d(0, 0, 0) rotate(0deg) scale(1)`,
+                  opacity: isFalling ? 0 : 1,
+                  transitionDelay: isFalling ? `${p.delay}s` : '0s',
+                  willChange: 'transform, opacity'
+                }}
+              />
+            );
+         })}
+       </div>
+    </div>
+  );
+};
+
 
 // LanguageToggle Component
 const LanguageToggle: React.FC = () => {
@@ -52,7 +157,7 @@ const NotificationsToggle: React.FC<{enabled: boolean, onToggle: (e: boolean) =>
         aria-label={tooltipText}
       >
         {enabled ? (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
         ) : (
@@ -61,7 +166,7 @@ const NotificationsToggle: React.FC<{enabled: boolean, onToggle: (e: boolean) =>
           </svg>
         )}
       </button>
-      <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 scale-0 group-hover:scale-100 rounded bg-gray-800 p-2 text-xs text-white transition-all w-max max-w-xs text-center z-20">
+      <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 scale-0 group-hover:scale-100 rounded bg-gray-900 p-2 text-xs text-white transition-all w-max max-w-xs text-center z-20">
         {tooltipText}
       </span>
     </div>
@@ -81,15 +186,15 @@ const ApplySection: React.FC = () => {
     ].sort((a, b) => b.text.length - a.text.length), [t]);
 
     const ExperienceTag: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-        <div className="bg-black/10 dark:bg-white/10 rounded-lg px-4 py-2 text-center font-semibold text-base" style={{ color: 'var(--text-body)' }}>
+        <div className="bg-black/10 dark:bg-white/10 rounded-lg px-4 py-2 text-center font-semibold text-base text-black dark:text-white">
             {children}
         </div>
     );
     
     return (
         <section id="apply-section" className="container mx-auto px-4 pb-8">
-            <div className="w-full max-w-6xl mx-auto rounded-2xl border border-white/10 bg-white/5 p-8 shadow-lg backdrop-blur-lg transition-all duration-300 ease-in-out hover:shadow-2xl dark:border-white/10 dark:bg-black/20 overflow-hidden" style={{ background: 'var(--card-bg)' }}>
-                <h2 className="text-3xl sm:text-4xl font-bold mb-8 text-center" style={{ fontFamily: "'Poppins', sans-serif", color: 'var(--text-title)' }}>
+            <div className="w-full max-w-6xl mx-auto rounded-2xl border border-black/10 dark:border-white/10 bg-white/40 dark:bg-white/5 p-8 shadow-lg backdrop-blur-lg transition-all duration-300 ease-in-out hover:shadow-2xl overflow-hidden" style={{ background: 'var(--card-bg)' }}>
+                <h2 className="text-3xl sm:text-4xl font-bold mb-8 text-center text-black dark:text-white" style={{ fontFamily: "'Poppins', sans-serif" }}>
                     {t('applyTitleOutOfRp')}
                 </h2>
 
@@ -98,8 +203,8 @@ const ApplySection: React.FC = () => {
                         {/* Left Column: Note */}
                         <div className="flex flex-col text-center lg:text-left rtl:lg:text-right">
                             <div>
-                                <h3 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-title)' }}>{t('noteTitle')}</h3>
-                                <p className="text-lg" style={{ color: 'var(--text-body)' }}>{t('noteText')}</p>
+                                <h3 className="text-3xl font-bold mb-2 text-black dark:text-white">{t('noteTitle')}</h3>
+                                <p className="text-lg text-gray-900 dark:text-white">{t('noteText')}</p>
                             </div>
                             <img 
                                 src={"https://i.postimg.cc/Ss3Rz0gj/Bs-BKXFTQ.png"}
@@ -119,8 +224,7 @@ const ApplySection: React.FC = () => {
                                 href="https://docs.google.com/forms/d/e/1FAIpQLScsGPexod2flMh9GXl8w7FHV44UgNveSmOQjqY6jInTg5Mxtw/viewform$0"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-block w-56 rounded-xl border border-white/10 bg-white/10 px-8 py-3 text-lg font-semibold backdrop-blur-sm transition-all duration-300 ease-in-out hover:bg-white/20 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 text-center"
-                                style={{ color: 'var(--text-body)' }}
+                                className="inline-block w-56 rounded-xl border border-black/20 dark:border-white/10 bg-black/10 dark:bg-white/10 px-8 py-3 text-lg font-semibold backdrop-blur-sm transition-all duration-300 ease-in-out hover:bg-black/20 dark:hover:bg-white/20 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 text-center text-black dark:text-white"
                             >
                                 {t('applyButton')}
                             </a>
@@ -129,7 +233,7 @@ const ApplySection: React.FC = () => {
                         {/* Right Column: Targeted Experiences */}
                         <div className="space-y-6 text-center lg:text-left rtl:lg:text-right">
                              <div>
-                                <h3 className="text-3xl font-bold mb-4" style={{ color: 'var(--text-title)' }}>{t('targetedExperiencesTitle')}</h3>
+                                <h3 className="text-3xl font-bold mb-4 text-black dark:text-white">{t('targetedExperiencesTitle')}</h3>
                                 <div className="space-y-3">
                                     {experiences.map(exp => (
                                         <ExperienceTag key={exp.key}>{exp.text}</ExperienceTag>
@@ -143,12 +247,12 @@ const ApplySection: React.FC = () => {
                         <div className="flex flex-col h-full space-y-6 text-center lg:text-left rtl:lg:text-right">
                             <div className="space-y-6 flex-grow">
                                 <div>
-                                    <h3 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-title)' }}>{t('noteTitle')}</h3>
-                                    <p style={{ color: 'var(--text-body)' }}>{t('noteText')}</p>
+                                    <h3 className="text-2xl font-bold mb-2 text-black dark:text-white">{t('noteTitle')}</h3>
+                                    <p className="text-gray-900 dark:text-white">{t('noteText')}</p>
                                 </div>
-                                <hr className="border-t border-white/10" />
+                                <hr className="border-t border-black/10 dark:border-white/10" />
                                 <div>
-                                    <h3 className="text-2xl font-bold mb-4" style={{ color: 'var(--text-title)' }}>{t('targetedExperiencesTitle')}</h3>
+                                    <h3 className="text-2xl font-bold mb-4 text-black dark:text-white">{t('targetedExperiencesTitle')}</h3>
                                     <div className="space-y-3">
                                         <ExperienceTag>{experiences[0].text}</ExperienceTag>
                                         <ExperienceTag>{experiences[1].text}</ExperienceTag>
@@ -163,8 +267,7 @@ const ApplySection: React.FC = () => {
                                 href="https://docs.google.com/forms/d/e/1FAIpQLScsGPexod2flMh9GXl8w7FHV44UgNveSmOQjqY6jInTg5Mxtw/viewform$0"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-full mt-6 rounded-xl border border-white/10 bg-white/10 px-8 py-3 text-lg font-semibold backdrop-blur-sm transition-all duration-300 ease-in-out hover:bg-white/20 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 text-center"
-                                style={{ color: 'var(--text-body)' }}
+                                className="w-full mt-6 rounded-xl border border-black/20 dark:border-white/10 bg-black/10 dark:bg-white/10 px-8 py-3 text-lg font-semibold backdrop-blur-sm transition-all duration-300 ease-in-out hover:bg-black/20 dark:hover:bg-white/20 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 text-center text-black dark:text-white"
                             >
                                 {t('applyButton')}
                             </a>
@@ -212,40 +315,40 @@ const Footer: React.FC = () => {
     const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, children }) => (
         <div className="group/tooltip relative">
             {children}
-            <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 scale-0 group-hover/tooltip:scale-100 rounded bg-gray-800 p-2 text-xs text-white transition-all dark:bg-gray-900 w-max max-w-xs text-center z-50">
+            <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 scale-0 group-hover/tooltip:scale-100 rounded bg-gray-900 p-2 text-xs text-white transition-all dark:bg-gray-900 w-max max-w-xs text-center z-50">
                 {text}
             </span>
         </div>
     );
 
     return (
-        <footer id="credits-footer" className="text-center py-8" style={{ color: 'var(--text-body)' }}>
-            <h3 className="text-xl font-semibold mb-6" style={{ color: 'var(--text-title)' }}>{t('footerTitle')}</h3>
+        <footer id="credits-footer" className="text-center py-8 text-black dark:text-white" style={{ color: 'var(--text-body)' }}>
+            <h3 className="text-xl font-bold mb-6 text-black dark:text-white" style={{ color: 'var(--text-title)' }}>{t('footerTitle')}</h3>
             <div className="flex justify-center items-start gap-12 md:gap-24">
                 {/* Mohammed */}
                 <div className="flex flex-col items-center gap-3">
-                    <p className="font-bold text-lg">Mohammed</p>
+                    <p className="font-bold text-lg text-black dark:text-white">Mohammed</p>
                     <div className="flex items-center gap-3">
                         <Tooltip text={copiedDiscordId === '221.k' ? t('discordIdCopied') : t('copyDiscordId')}>
-                            <button onClick={() => handleDiscordCopy('221.k')} className="p-2 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 transition-colors">
+                            <button onClick={() => handleDiscordCopy('221.k')} className="p-2 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 transition-colors text-black dark:text-white">
                                 <DiscordIcon />
                             </button>
                         </Tooltip>
-                        <a href="https://x.com/i_MohammedQht" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 transition-colors" aria-label="Mohammed's Twitter">
+                        <a href="https://x.com/i_MohammedQht" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 transition-colors text-black dark:text-white" aria-label="Mohammed's Twitter">
                             <XIcon />
                         </a>
                     </div>
                 </div>
                 {/* Osama */}
                 <div className="flex flex-col items-center gap-3">
-                    <p className="font-bold text-lg">Osama</p>
+                    <p className="font-bold text-lg text-black dark:text-white">Osama</p>
                     <div className="flex items-center gap-3">
                          <Tooltip text={copiedDiscordId === 'alwa2' ? t('discordIdCopied') : t('copyDiscordId')}>
-                            <button onClick={() => handleDiscordCopy('alwa2')} className="p-2 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 transition-colors">
+                            <button onClick={() => handleDiscordCopy('alwa2')} className="p-2 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 transition-colors text-black dark:text-white">
                                 <DiscordIcon />
                             </button>
                         </Tooltip>
-                        <a href="https://x.com/alwa28" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 transition-colors" aria-label="Osama's Twitter">
+                        <a href="https://x.com/alwa28" target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 transition-colors text-black dark:text-white" aria-label="Osama's Twitter">
                             <XIcon />
                         </a>
                     </div>
@@ -259,20 +362,45 @@ const CACHED_STREAMER_DATA_KEY = 'cachedStreamerData';
 
 const App: React.FC = () => {
   const { t } = useLocalization();
+  // Initialize with placeholders for all configured streamers to allow incremental loading
   const [streamerData, setStreamerData] = useState<KickApiResponse | null>(() => {
     try {
       const cachedData = localStorage.getItem(CACHED_STREAMER_DATA_KEY);
       if (cachedData) {
         return JSON.parse(cachedData);
       }
-      return null;
+      
+      // Initial empty state derived from constants
+      return {
+          checked_at: new Date().toISOString(),
+          data: KICK_STREAMERS.map(s => ({
+            username: s.username,
+            display_name: s.username,
+            profile_pic: null,
+            is_live: false,
+            live_title: null,
+            viewer_count: null,
+            live_since: null,
+            last_stream_start_time: null,
+            live_url: `https://kick.com/${s.username}`,
+            profile_url: `https://kick.com/${s.username}`,
+            tags: s.tags,
+            character: s.character,
+            isLoading: true // Mark as loading initially
+          }))
+      };
     } catch (e) {
       console.error("Failed to parse cached data", e);
       return null;
     }
   });
+
+  // Intro State
+  const [showIntro, setShowIntro] = useState(true);
+
   const prevStreamerDataRef = useRef<KickApiResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(!streamerData);
+  // isLoading is mostly managed per-card now, but we keep this for potential global usage if needed
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(streamerData ? new Date(streamerData.checked_at) : null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -439,38 +567,100 @@ const App: React.FC = () => {
   }, [streamerData]);
 
   const fetchData = useCallback(async () => {
-    // Only set loading to true if there's no cached data to show
-    if (!streamerData) {
-      setIsLoading(true);
-    }
     setError(null);
-    try {
-      const data = await fetchChannelStatuses(KICK_STREAMERS);
-      
-      if(prevStreamerDataRef.current) {
-        data.data.forEach(currentStreamer => {
-            const prevStreamer = prevStreamerDataRef.current?.data.find(s => s.username === currentStreamer.username);
-            if(prevStreamer && !prevStreamer.is_live && currentStreamer.is_live) {
-                const notificationBody = currentStreamer.live_title || t('isNowLive', { name: currentStreamer.display_name });
-                showLiveNotification(currentStreamer, notificationBody);
+    
+    // Create a temporary data structure if we don't have one, or use existing to avoid layout shift
+    // We do NOT set global isLoading to true, because we want incremental updates
+    
+    const updateState = (updatedChannel: Channel) => {
+        setStreamerData(prevData => {
+            if (!prevData) {
+                // Should technically be initialized already, but safe fallback
+                return {
+                    checked_at: new Date().toISOString(),
+                    data: [updatedChannel]
+                };
             }
-        });
-      }
-      prevStreamerDataRef.current = data;
+            
+            const newData = prevData.data.map(item => 
+                item.username.toLowerCase() === updatedChannel.username.toLowerCase() 
+                ? updatedChannel 
+                : item
+            );
+            
+            // Check if user just went live for notifications
+            if (prevData) {
+                const prevStreamer = prevData.data.find(s => s.username.toLowerCase() === updatedChannel.username.toLowerCase());
+                if (prevStreamer && !prevStreamer.is_live && updatedChannel.is_live) {
+                    const notificationBody = updatedChannel.live_title || t('isNowLive', { name: updatedChannel.display_name });
+                    showLiveNotification(updatedChannel, notificationBody);
+                }
+            }
 
-      setStreamerData(data);
-      localStorage.setItem(CACHED_STREAMER_DATA_KEY, JSON.stringify(data));
-      setLastUpdated(new Date(data.checked_at));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-      console.error(err);
-    } finally {
-        setIsLoading(false);
+            return {
+                ...prevData,
+                checked_at: new Date().toISOString(),
+                data: newData
+            };
+        });
+        setLastUpdated(new Date());
+    };
+
+    // Sequential fetching with delay
+    for (const streamerConfig of KICK_STREAMERS) {
+        try {
+            // Set individual loading state if not already loaded (optional, depends on UX preference)
+            // Here we just fetch. The initial state already has isLoading: true for first load.
+            
+            const cleanUsername = extractUsername(streamerConfig.username);
+            const channelData = await fetchKickChannel(cleanUsername);
+            
+            const enrichedChannel: Channel = {
+                ...channelData,
+                tags: streamerConfig.tags,
+                character: streamerConfig.character,
+                isLoading: false, // Mark as done
+                username: streamerConfig.username // Preserve original casing from config if needed
+            };
+            
+            updateState(enrichedChannel);
+
+        } catch (err) {
+            console.error(`Error fetching ${streamerConfig.username}`, err);
+             // Update state with error
+             setStreamerData(prevData => {
+                if(!prevData) return null;
+                const newData = prevData.data.map(item => 
+                     item.username.toLowerCase() === streamerConfig.username.toLowerCase()
+                     ? { ...item, error: true, isLoading: false }
+                     : item
+                );
+                return { ...prevData, data: newData, checked_at: new Date().toISOString() };
+             });
+        }
+
+        // Reduced timeout to 10ms for faster loading while keeping sequentiality
+        await new Promise(resolve => setTimeout(resolve, 10));
     }
-  }, [t, streamerData]);
+    
+    // Save to local storage after full cycle (or incrementally if preferred)
+    // We can't easily access the latest state here due to closure, 
+    // but we can rely on a useEffect to sync state to localStorage if needed.
+    
+  }, [t]);
+
+  // Sync state to local storage whenever it changes
+  useEffect(() => {
+      if (streamerData) {
+          localStorage.setItem(CACHED_STREAMER_DATA_KEY, JSON.stringify(streamerData));
+      }
+  }, [streamerData]);
 
   useEffect(() => {
     fetchData();
+    // The polling interval needs to be longer than the total time to fetch all streamers
+    // 60 streamers * 0.05 seconds = ~3 seconds.
+    // POLLING_INTERVAL_SECONDS is 120 (2 mins), so this is safe.
     const intervalId = setInterval(fetchData, POLLING_INTERVAL_SECONDS * 1000);
     return () => clearInterval(intervalId);
   }, [fetchData]);
@@ -787,7 +977,10 @@ const App: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen w-full transition-colors duration-300" style={{ color: 'var(--text-body)' }}>
+    <div className="min-h-screen w-full transition-colors duration-300 text-black dark:text-white" style={{ color: 'var(--text-body)' }}>
+      
+      {showIntro && <IntroAnimation onComplete={() => setShowIntro(false)} />}
+      
       <TutorialModal
         isOpen={isTutorialOpen}
         onClose={handleTutorialClose}
@@ -821,7 +1014,7 @@ const App: React.FC = () => {
             </div>
              <button
                 onClick={() => setIsSidebarOpen(true)}
-                className="p-2 rounded-full bg-black/10 dark:bg-white/10 backdrop-blur-sm transition-colors"
+                className="p-2 rounded-full bg-black/10 dark:bg-white/10 backdrop-blur-sm transition-colors text-black dark:text-white"
                 aria-label={t('openMenu')}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -834,17 +1027,17 @@ const App: React.FC = () => {
             alt="CIA Logo" 
             className="w-24 h-24 rounded-full border-2 border-white/20 shadow-lg mb-4 transform -translate-x-3"
           />
-          <h1 className="text-5xl font-bold tracking-[0.5em]" style={{ fontFamily: "'Poppins', sans-serif", color: 'var(--text-title)' }}>
+          <h1 className="text-5xl font-bold tracking-[0.5em] text-black dark:text-white" style={{ fontFamily: "'Poppins', sans-serif", color: 'var(--text-title)' }}>
             C I A
           </h1>
-          <h2 className="text-xl font-semibold mt-2" style={{ fontFamily: "'Poppins', sans-serif", transform: 'translateX(-10px)', color: 'var(--text-title)' }}>
+          <h2 className="text-xl font-semibold mt-2 text-black dark:text-white" style={{ fontFamily: "'Poppins', sans-serif", transform: 'translateX(-10px)', color: 'var(--text-title)' }}>
             {getTitle()}
           </h2>
 
           {randomVerse && <QuranicVerse verse={randomVerse} />}
 
           {lastUpdated && (view === 'live' || view === 'scheduled' || view === 'favorites' || view === 'multistream') && (
-             <p className="text-sm text-black/60 dark:text-white/60 mt-4">
+             <p className="text-sm text-gray-900 dark:text-white/60 mt-4">
                {t('lastUpdated', { time: lastUpdated.toLocaleTimeString() })}
              </p>
           )}
@@ -865,9 +1058,9 @@ const App: React.FC = () => {
                                 <div className={`${isAnimatingOut ? 'animate-item-pop-out' : 'animate-item-pop-in'}`} style={{ animationDelay: '0ms' }}>
                                   <div className="relative w-full">
                                     <span className="absolute inset-y-0 left-0 rtl:left-auto rtl:right-0 flex items-center pl-4 rtl:pl-0 rtl:pr-4 pointer-events-none">
-                                      <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                      <svg className="w-5 h-5 text-gray-700 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                                     </span>
-                                    <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('searchStreamer')} className="w-full py-3 pl-11 pr-4 rtl:pl-4 rtl:pr-11 text-black bg-white/20 rounded-full border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-400 dark:text-white dark:bg-black/20 dark:placeholder-gray-400 backdrop-blur-sm transition-all" aria-label={t('searchStreamer')} />
+                                    <input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('searchStreamer')} className="w-full py-3 pl-11 pr-4 rtl:pl-4 rtl:pr-11 text-black bg-white/40 placeholder-gray-700 rounded-full border border-black/10 focus:outline-none focus:ring-2 focus:ring-blue-600 dark:text-white dark:bg-black/20 dark:placeholder-gray-400 dark:border-transparent dark:focus:ring-blue-400 backdrop-blur-sm transition-all" aria-label={t('searchStreamer')} />
                                   </div>
                                 </div>
 
@@ -884,14 +1077,14 @@ const App: React.FC = () => {
                                   </div>
                                   <div className={`${isAnimatingOut ? 'animate-item-pop-out' : 'animate-item-pop-in'}`} style={{ animationDelay: '100ms' }}>
                                     <div className="relative w-full">
-                                      <select value={sortOption} onChange={(e) => setSortOption(e.target.value as any)} className="w-full py-3 pl-4 pr-10 rtl:pl-10 rtl:pr-4 text-black bg-white/20 rounded-full border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-400 dark:text-white dark:bg-black/20 backdrop-blur-sm transition-all appearance-none" aria-label={t('sortBy')}>
+                                      <select value={sortOption} onChange={(e) => setSortOption(e.target.value as any)} className="w-full py-3 pl-4 pr-10 rtl:pl-10 rtl:pr-4 text-black bg-white/40 rounded-full border border-black/10 focus:outline-none focus:ring-2 focus:ring-blue-600 dark:text-white dark:bg-black/20 dark:border-transparent dark:focus:ring-blue-400 backdrop-blur-sm transition-all appearance-none" aria-label={t('sortBy')}>
                                         <option value="status">{t('sortByStatus')}</option>
                                         <option value="viewers_desc">{t('viewersHighToLow')}</option>
                                         <option value="live_duration_desc">{t('sortByLiveDuration')}</option>
                                         <option value="last_seen_desc">{t('sortByLastSeen')}</option>
                                       </select>
                                       <span className="absolute inset-y-0 right-0 rtl:right-auto rtl:left-0 flex items-center pr-4 rtl:pr-0 rtl:pl-4 pointer-events-none">
-                                        <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" /></svg>
+                                        <svg className="w-5 h-5 text-gray-700 dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" /></svg>
                                       </span>
                                     </div>
                                   </div>
@@ -900,19 +1093,19 @@ const App: React.FC = () => {
                               
                               {/* Live Stats */}
                               <div className={`flex flex-col items-center gap-4 ${isAnimatingOut ? 'animate-item-pop-out' : 'animate-item-pop-in'}`} style={{ animationDelay: '150ms' }}>
-                                <div className="flex justify-center items-center flex-wrap gap-x-6 gap-y-2 text-sm border border-white/10 bg-black/5 dark:bg-white/5 rounded-full px-4 py-2 backdrop-blur-sm">
-                                  <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-green-400"></span><span>{t('liveCount', { count: liveCount })}</span></span>
-                                  <div className="h-4 w-px bg-white/20 hidden sm:block"></div>
-                                  <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-red-500"></span><span>{t('offlineCount', { count: offlineCount })}</span></span>
-                                  <div className="h-4 w-px bg-white/20 hidden sm:block"></div>
-                                  <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-gray-500"></span><span>{t('inactiveCount', { count: inactiveCount })}</span></span>
+                                <div className="flex justify-center items-center flex-wrap gap-x-6 gap-y-2 text-sm border border-black/10 dark:border-white/10 bg-white/40 dark:bg-white/5 rounded-full px-4 py-2 backdrop-blur-sm text-black font-semibold dark:font-normal dark:text-white">
+                                  <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-green-500"></span><span>{t('liveCount', { count: liveCount })}</span></span>
+                                  <div className="h-4 w-px bg-black/20 dark:bg-white/20 hidden sm:block"></div>
+                                  <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-red-600 dark:bg-red-500"></span><span>{t('offlineCount', { count: offlineCount })}</span></span>
+                                  <div className="h-4 w-px bg-black/20 dark:bg-white/20 hidden sm:block"></div>
+                                  <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-gray-600 dark:bg-gray-500"></span><span>{t('inactiveCount', { count: inactiveCount })}</span></span>
                                 </div>
                               </div>
                             </>
                         )}
                       </div>
                       {error && (
-                        <div className={`text-center bg-red-500/20 text-red-300 p-4 rounded-lg mb-8 flex flex-col sm:flex-row items-center justify-center gap-4 ${isAnimatingOut ? 'animate-item-pop-out' : 'animate-item-pop-in'}`} style={{ animationDelay: '0ms' }}>
+                        <div className={`text-center bg-red-500/20 text-red-900 dark:text-red-300 p-4 rounded-lg mb-8 flex flex-col sm:flex-row items-center justify-center gap-4 ${isAnimatingOut ? 'animate-item-pop-out' : 'animate-item-pop-in'}`} style={{ animationDelay: '0ms' }}>
                           <div>
                               <p><strong>{t('apiErrorTitle')}</strong> {error}</p>
                               <p>{t('apiErrorBody')}</p>
@@ -920,31 +1113,15 @@ const App: React.FC = () => {
                           <button
                               onClick={fetchData}
                               disabled={isLoading}
-                              className="rounded-lg px-4 py-2 text-sm font-semibold bg-red-400/20 text-white hover:bg-red-400/40 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                              className="rounded-lg px-4 py-2 text-sm font-semibold bg-red-400/20 text-black dark:text-white hover:bg-red-400/40 transition-colors disabled:opacity-50 disabled:cursor-wait"
                           >
                               {t('retry')}
                           </button>
                         </div>
                       )}
 
-                      {isLoading && !streamerData ? (
-                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                          {Array.from({ length: 8 }).map((_, index) => (
-                              <div key={index} className="rounded-2xl border border-white/20 bg-white/5 p-5 shadow-lg backdrop-blur-lg animate-pulse">
-                                  <div className="absolute left-4 top-4 rtl:left-auto rtl:right-4 h-8 w-24 rounded-full bg-black/20 dark:bg-white/10"></div>
-                                  <div className="flex items-center gap-4 mt-12">
-                                      <div className="h-16 w-16 rounded-full bg-black/20 dark:bg-white/10"></div>
-                                      <div className="flex-1 space-y-3">
-                                          <div className="h-4 w-3/4 rounded bg-black/20 dark:bg-white/10"></div>
-                                          <div className="h-3 w-1/2 rounded bg-black/20 dark:bg-white/10"></div>
-                                      </div>
-                                  </div>
-                                  <div className="mt-4 h-3 w-full rounded bg-black/20 dark:bg-white/10"></div>
-                                  <div className="mt-2 h-3 w-2/3 rounded bg-black/20 dark:bg-white/10"></div>
-                              </div>
-                          ))}
-                          </div>
-                      ) : streamerData ? (
+                      {/* Render Streamers Grid (Loading state handled per-card inside) */}
+                      {streamerData ? (
                         <>
                           <main
                             key={`live-grid-${sortOption}-${searchQuery}-${selectedTags.join('_')}`}
@@ -983,30 +1160,30 @@ const App: React.FC = () => {
                                 <div className={`${isAnimatingOut ? 'animate-item-pop-out' : 'animate-item-pop-in'}`} style={{ animationDelay: '0ms' }}>
                                   <div className="relative w-full">
                                     <span className="absolute inset-y-0 left-0 rtl:left-auto rtl:right-0 flex items-center pl-4 rtl:pl-0 rtl:pr-4 pointer-events-none">
-                                      <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                      <svg className="w-5 h-5 text-gray-700 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                                     </span>
-                                    <input type="search" value={scheduleSearchQuery} onChange={(e) => setScheduleSearchQuery(e.target.value)} placeholder={t('searchSchedules')} className="w-full py-3 pl-11 pr-4 rtl:pl-4 rtl:pr-11 text-black bg-white/20 rounded-full border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-400 dark:text-white dark:bg-black/20 dark:placeholder-gray-400 backdrop-blur-sm transition-all" aria-label={t('searchSchedules')} />
+                                    <input type="search" value={scheduleSearchQuery} onChange={(e) => setScheduleSearchQuery(e.target.value)} placeholder={t('searchSchedules')} className="w-full py-3 pl-11 pr-4 rtl:pl-4 rtl:pr-11 text-black bg-white/40 placeholder-gray-700 rounded-full border border-black/10 focus:outline-none focus:ring-2 focus:ring-blue-600 dark:text-white dark:bg-black/20 dark:placeholder-gray-400 dark:border-transparent dark:focus:ring-blue-400 backdrop-blur-sm transition-all" aria-label={t('searchSchedules')} />
                                   </div>
                                 </div>
                                 <div className={`${isAnimatingOut ? 'animate-item-pop-out' : 'animate-item-pop-in'}`} style={{ animationDelay: '50ms' }}>
                                   <div className="relative w-full">
-                                    <select value={scheduleSortOption} onChange={(e) => setScheduleSortOption(e.target.value as 'soonest' | 'status')} className="w-full py-3 pl-4 pr-10 rtl:pl-10 rtl:pr-4 text-black bg-white/20 rounded-full border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-400 dark:text-white dark:bg-black/20 backdrop-blur-sm transition-all appearance-none" aria-label={t('sortBy')}>
+                                    <select value={scheduleSortOption} onChange={(e) => setScheduleSortOption(e.target.value as 'soonest' | 'status')} className="w-full py-3 pl-4 pr-10 rtl:pl-10 rtl:pr-4 text-black bg-white/40 rounded-full border border-black/10 focus:outline-none focus:ring-2 focus:ring-blue-600 dark:text-white dark:bg-black/20 dark:border-transparent dark:focus:ring-blue-400 backdrop-blur-sm transition-all appearance-none" aria-label={t('sortBy')}>
                                       <option value="soonest">{t('sortBySoonest')}</option>
                                       <option value="status">{t('sortByStatusScheduled')}</option>
                                     </select>
                                      <span className="absolute inset-y-0 right-0 rtl:right-auto rtl:left-0 flex items-center pr-4 rtl:pr-0 rtl:pl-4 pointer-events-none">
-                                      <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" /></svg>
+                                      <svg className="w-5 h-5 text-gray-700 dark:text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" /></svg>
                                     </span>
                                   </div>
                                 </div>
                               </div>
                               <div className={`flex flex-col items-center gap-4 ${isAnimatingOut ? 'animate-item-pop-out' : 'animate-item-pop-in'}`} style={{ animationDelay: '100ms' }}>
-                                <button onClick={handleCopyLinks} disabled={isCopyButtonDisabled} className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50 disabled:cursor-not-allowed">
-                                  {isLinksCopied ? ( <><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg><span>{t('copied')}</span></> ) : ( <><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg><span>{copyButtonText}</span></> )}
+                                <button onClick={handleCopyLinks} disabled={isCopyButtonDisabled} className="flex items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-black/10 dark:bg-white/5 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-black/20 dark:hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50 disabled:cursor-not-allowed text-black dark:text-white">
+                                  {isLinksCopied ? ( <><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg><span>{t('copied')}</span></> ) : ( <><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg><span>{copyButtonText}</span></> )}
                                 </button>
-                                <div className="flex justify-center items-center flex-wrap gap-x-4 gap-y-2 text-sm">
-                                  <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-green-400 animate-[pulse-live_2s_infinite]"></span><span>{t('liveSoonCount', { count: scheduleStats.liveSoonCount })}</span></span>
-                                  <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-orange-400 animate-[pulse-scheduled_2s_infinite]"></span><span>{t('scheduledCount', { count: scheduleStats.scheduledCount })}</span></span>
+                                <div className="flex justify-center items-center flex-wrap gap-x-4 gap-y-2 text-sm text-black dark:text-white">
+                                  <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-green-500 animate-[pulse-live_2s_infinite]"></span><span>{t('liveSoonCount', { count: scheduleStats.liveSoonCount })}</span></span>
+                                  <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-orange-500 animate-[pulse-scheduled_2s_infinite]"></span><span>{t('scheduledCount', { count: scheduleStats.scheduledCount })}</span></span>
                                 </div>
                               </div>
                             </div>
@@ -1016,7 +1193,6 @@ const App: React.FC = () => {
                           streamerData={streamerData}
                           onCardClick={setSelectedStreamer}
                           streamerNotificationSettings={streamerNotificationSettings}
-                          // FIX: `onNotificationToggle` was not defined in this scope. Use `updateStreamerNotificationSetting` instead.
                           onNotificationToggle={updateStreamerNotificationSetting}
                           notificationPermission={notificationPermission}
                           onStatsUpdate={handleScheduleStatsUpdate}
@@ -1044,7 +1220,7 @@ const App: React.FC = () => {
                         <div className={`flex flex-col items-center gap-4 ${isAnimatingOut ? 'animate-item-pop-out' : 'animate-item-pop-in'}`} style={{ animationDelay: '50ms' }}>
                             <button
                                 onClick={handleGenerateMultiStreamLink}
-                                className="w-full max-w-sm rounded-xl border border-white/10 bg-white/10 px-8 py-3 text-lg font-semibold backdrop-blur-sm transition-all duration-300 ease-in-out hover:bg-white/20 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 text-center"
+                                className="w-full max-w-sm rounded-xl border border-black/20 dark:border-white/10 bg-black/10 dark:bg-white/10 px-8 py-3 text-lg font-semibold backdrop-blur-sm transition-all duration-300 ease-in-out hover:bg-black/20 dark:hover:bg-white/20 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/50 text-center text-black dark:text-white"
                             >
                                 {t('generateMultiStream')}
                             </button>
@@ -1058,7 +1234,7 @@ const App: React.FC = () => {
                                     href={multiStreamLink}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex-grow w-full sm:w-auto flex items-center gap-3 rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-base font-semibold backdrop-blur-sm transition-all duration-300 ease-in-out hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 text-left rtl:text-right"
+                                    className="flex-grow w-full sm:w-auto flex items-center gap-3 rounded-xl border border-black/20 dark:border-white/10 bg-black/10 dark:bg-white/10 px-4 py-3 text-base font-semibold backdrop-blur-sm transition-all duration-300 ease-in-out hover:bg-black/20 dark:hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 text-left rtl:text-right text-black dark:text-white"
                                 >
                                     <div className="flex -space-x-3 rtl:space-x-reverse overflow-hidden">
                                         {selectedMultiStreamers.slice(0, 5).map(s => (
@@ -1072,11 +1248,11 @@ const App: React.FC = () => {
                                 </a>
                                 <button
                                     onClick={handleCopyMultiStreamLink}
-                                    className="w-full sm:w-auto flex-shrink-0 flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
+                                    className="w-full sm:w-auto flex-shrink-0 flex items-center justify-center gap-2 rounded-xl border border-black/20 dark:border-white/10 bg-black/10 dark:bg-white/5 px-4 py-3 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-black/20 dark:hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 text-black dark:text-white"
                                 >
                                     {isMultiStreamLinkCopied ? (
                                         <>
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
                                             <span>{t('linkCopied')}</span>
                                         </>
                                     ) : (
@@ -1119,18 +1295,18 @@ const App: React.FC = () => {
                         <div className="relative z-10 space-y-6 mb-6">
                             <div className={`flex flex-col items-center gap-4 ${isAnimatingOut ? 'animate-item-pop-out' : 'animate-item-pop-in'}`} style={{ animationDelay: '150ms' }}>
                                 <div className="flex justify-center items-center flex-wrap gap-4">
-                                    <button onClick={handleCopyLinks} disabled={isCopyButtonDisabled} className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50 disabled:cursor-not-allowed">
-                                      {isLinksCopied ? ( <><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg><span>{t('copied')}</span></> ) : ( <><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg><span>{copyButtonText}</span></> )}
+                                    <button onClick={handleCopyLinks} disabled={isCopyButtonDisabled} className="flex items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-black/10 dark:bg-white/5 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-black/20 dark:hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50 disabled:cursor-not-allowed text-black dark:text-white">
+                                      {isLinksCopied ? ( <><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg><span>{t('copied')}</span></> ) : ( <><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg><span>{copyButtonText}</span></> )}
                                     </button>
-                                    <button onClick={handleClearFavorites} disabled={!hasFavorites} className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50 disabled:cursor-not-allowed text-red-400">
+                                    <button onClick={handleClearFavorites} disabled={!hasFavorites} className="flex items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-black/10 dark:bg-white/5 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-black/20 dark:hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50 disabled:cursor-not-allowed text-red-600 dark:text-red-400">
                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                        <span>{t('clearFavorites')}</span>
                                     </button>
                                 </div>
-                                <div className="flex justify-center items-center flex-wrap gap-x-6 gap-y-2 text-sm border border-white/10 bg-black/5 dark:bg-white/5 rounded-full px-4 py-2 backdrop-blur-sm">
-                                    <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-green-400"></span><span>{t('liveCount', { count: favoritesLiveCount })}</span></span>
-                                    <div className="h-4 w-px bg-white/20 hidden sm:block"></div>
-                                    <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-red-500"></span><span>{t('offlineCount', { count: favoritesOfflineCount })}</span></span>
+                                <div className="flex justify-center items-center flex-wrap gap-x-6 gap-y-2 text-sm border border-black/10 dark:border-white/10 bg-white/40 dark:bg-white/5 rounded-full px-4 py-2 backdrop-blur-sm text-black font-semibold dark:font-normal dark:text-white">
+                                    <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-green-500"></span><span>{t('liveCount', { count: favoritesLiveCount })}</span></span>
+                                    <div className="h-4 w-px bg-black/20 dark:bg-white/20 hidden sm:block"></div>
+                                    <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-red-600 dark:bg-red-500"></span><span>{t('offlineCount', { count: favoritesOfflineCount })}</span></span>
                                 </div>
                             </div>
                         </div>
@@ -1220,7 +1396,7 @@ const App: React.FC = () => {
       {showScrollBtn && (
         <button
           onClick={handleScrollButtonClick}
-          className="fixed bottom-6 right-6 rtl:right-auto rtl:left-6 z-50 p-3 rounded-full bg-white/10 dark:bg-black/20 text-black dark:text-white backdrop-blur-lg border border-white/10 shadow-lg hover:bg-white/20 dark:hover:bg-black/30 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-offset-slate-900 transition-all duration-300 transform hover:scale-110 active:scale-95"
+          className="fixed bottom-6 right-6 rtl:right-auto rtl:left-6 z-50 p-3 rounded-full bg-black/10 dark:bg-black/20 text-black dark:text-white backdrop-blur-lg border border-black/10 dark:border-white/10 shadow-lg hover:bg-black/20 dark:hover:bg-black/30 focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-offset-slate-900 transition-all duration-300 transform hover:scale-110 active:scale-95"
           aria-label={isAtTop ? t('scrollToBottom') : t('scrollToTop')}
         >
           {isAtTop ? (

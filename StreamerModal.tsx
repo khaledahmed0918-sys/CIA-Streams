@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Channel } from './types';
 import { useLocalization } from './hooks/useLocalization';
@@ -80,7 +81,6 @@ export const StreamerModal: React.FC<StreamerModalProps> = ({ streamer, onClose 
   };
 
   const characters = streamer.character?.split('|').map(c => c.trim()).filter(Boolean) || [];
-  // FIX: Ensure social link handles are strings to prevent type errors.
   const socialLinks = streamer.social_links ? Object.entries(streamer.social_links).filter(([, handle]) => typeof handle === 'string' && handle) : [];
 
   return (
@@ -92,7 +92,7 @@ export const StreamerModal: React.FC<StreamerModalProps> = ({ streamer, onClose 
       aria-labelledby="streamer-modal-title"
     >
       <div 
-        className="relative w-full max-w-lg bg-slate-200/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-lg bg-slate-200 dark:bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative">
@@ -101,7 +101,7 @@ export const StreamerModal: React.FC<StreamerModalProps> = ({ streamer, onClose 
              ) : (
                 <div className="w-full h-32 bg-gradient-to-r from-slate-500 to-slate-700 dark:from-slate-800 dark:to-slate-900"></div>
              )}
-             <div className="absolute inset-0 bg-gradient-to-t from-slate-200/80 dark:from-slate-900/80 to-transparent"></div>
+             <div className="absolute inset-0 bg-gradient-to-t from-slate-200/90 dark:from-slate-900/90 to-transparent"></div>
         </div>
 
         <button 
@@ -124,7 +124,7 @@ export const StreamerModal: React.FC<StreamerModalProps> = ({ streamer, onClose 
               <div className="pb-2">
                 <h2 id="streamer-modal-title" className="text-3xl font-bold">{streamer.display_name}</h2>
                 {streamer.followers_count !== null && !streamer.error && (
-                     <div className="flex items-center gap-1.5 text-sm text-black/70 dark:text-white/70">
+                     <div className="flex items-center gap-1.5 text-sm text-gray-800 dark:text-white/70">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                             <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
                         </svg>
@@ -137,20 +137,20 @@ export const StreamerModal: React.FC<StreamerModalProps> = ({ streamer, onClose 
 
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 <div>
-                    <dt className="font-bold text-black/60 dark:text-white/60">{t('status')}</dt>
-                    <dd className={`flex items-center gap-2 font-semibold ${streamer.is_live ? 'text-green-500' : 'text-red-500'}`}>
+                    <dt className="font-bold text-gray-700 dark:text-white/60">{t('status')}</dt>
+                    <dd className={`flex items-center gap-2 font-semibold ${streamer.is_live ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}>
                         <span className={`h-2 w-2 rounded-full ${streamer.is_live ? 'bg-green-500' : 'bg-red-500'}`}></span>
                         {streamer.is_live ? t('live') : t('offline')}
                     </dd>
                 </div>
                 <div>
-                     <dt className="font-bold text-black/60 dark:text-white/60">{streamer.is_live ? t('liveFor', {time: ''}).trim() : t('lastSeen')}</dt>
-                     <dd>{streamer.is_live ? humanizeTime(streamer.live_since, language) : (streamer.last_stream_start_time ? formatFullDateTime(streamer.last_stream_start_time, language) : t('noRecentActivity'))}</dd>
+                     <dt className="font-bold text-gray-700 dark:text-white/60">{streamer.is_live ? t('liveFor', {time: ''}).trim() : t('lastSeen')}</dt>
+                     <dd className="text-black dark:text-white">{streamer.is_live ? humanizeTime(streamer.live_since, language) : (streamer.last_stream_start_time ? formatFullDateTime(streamer.last_stream_start_time, language) : t('noRecentActivity'))}</dd>
                 </div>
                 {streamer.is_live && streamer.live_category && (
                     <div className="sm:col-span-2">
-                        <dt className="font-bold text-black/60 dark:text-white/60">{t('category')}</dt>
-                        <dd>{streamer.live_category}</dd>
+                        <dt className="font-bold text-gray-700 dark:text-white/60">{t('category')}</dt>
+                        <dd className="text-black dark:text-white">{streamer.live_category}</dd>
                     </div>
                 )}
             </div>
@@ -158,14 +158,14 @@ export const StreamerModal: React.FC<StreamerModalProps> = ({ streamer, onClose 
             {streamer.is_live && streamer.live_title && (
               <div className="mt-4">
                 <h3 className="font-bold text-lg mb-1">{t('streamTitle')}</h3>
-                <p className="text-black/80 dark:text-white/80 text-sm">{streamer.live_title}</p>
+                <p className="text-gray-900 dark:text-white/80 text-sm">{streamer.live_title}</p>
               </div>
             )}
 
             {streamer.bio && (
               <div className="mt-4">
                 <h3 className="font-bold text-lg mb-1">{t('bio')}</h3>
-                <p className="text-black/80 dark:text-white/80 italic text-sm">"{streamer.bio}"</p>
+                <p className="text-gray-800 dark:text-white/80 italic text-sm">"{streamer.bio}"</p>
               </div>
             )}
 
@@ -174,7 +174,7 @@ export const StreamerModal: React.FC<StreamerModalProps> = ({ streamer, onClose 
                 <h3 className="font-bold text-lg mb-2">{t('allCharacters')}</h3>
                 <div className="flex flex-wrap gap-2">
                   {characters.map(char => (
-                    <span key={char} className="rounded-full bg-black/20 dark:bg-white/10 px-3 py-1 text-sm font-semibold">
+                    <span key={char} className="rounded-full bg-black/10 dark:bg-white/10 px-3 py-1 text-sm font-semibold text-black dark:text-white">
                       {char}
                     </span>
                   ))}
@@ -187,7 +187,7 @@ export const StreamerModal: React.FC<StreamerModalProps> = ({ streamer, onClose 
                 <h3 className="font-bold text-lg mb-2">{t('tags')}</h3>
                 <div className="flex flex-wrap gap-2">
                   {streamer.tags.map(tag => (
-                    <span key={tag} className="rounded-full bg-black/20 dark:bg-white/10 px-3 py-1 text-sm font-semibold">
+                    <span key={tag} className="rounded-full bg-black/10 dark:bg-white/10 px-3 py-1 text-sm font-semibold text-black dark:text-white">
                       {tag}
                     </span>
                   ))}
@@ -211,7 +211,7 @@ export const StreamerModal: React.FC<StreamerModalProps> = ({ streamer, onClose 
                             href={finalUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 rounded-full bg-black/20 dark:bg-white/10 px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-black/30 dark:hover:bg-white/20"
+                            className="flex items-center gap-2 rounded-full bg-black/10 dark:bg-white/10 px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-black/20 dark:hover:bg-white/20 text-black dark:text-white"
                         >
                             {metadata.icon}
                             <span>{metadata.name}</span>
@@ -226,7 +226,7 @@ export const StreamerModal: React.FC<StreamerModalProps> = ({ streamer, onClose 
                href={streamer.is_live ? streamer.live_url! : streamer.profile_url}
                target="_blank"
                rel="noopener noreferrer"
-               className="mt-6 w-full text-center block rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50"
+               className="mt-6 w-full text-center block rounded-xl border border-black/20 dark:border-white/10 bg-black/5 dark:bg-white/5 px-4 py-2 text-sm font-semibold backdrop-blur-sm transition-all duration-200 hover:bg-black/10 dark:hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 text-black dark:text-white"
            >
                {t('link')}
            </a>

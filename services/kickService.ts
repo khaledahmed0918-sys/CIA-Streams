@@ -1,3 +1,4 @@
+
 import type { Channel, KickApiResponse } from '../types';
 
 // --- IMPORTANT ---
@@ -12,7 +13,7 @@ const DEFAULT_PROFILE_PIC = 'https://i.postimg.cc/QNW4B8KQ/00WZrbng.png'; // Usi
  * @param input The string to parse.
  * @returns The extracted username.
  */
-const extractUsername = (input: string): string => {
+export const extractUsername = (input: string): string => {
     if (input.includes('kick.com/')) {
         // Find the last part of the path, removing query params or fragments
         return input.split('/').pop()?.split('?')[0].split('#')[0] || input;
@@ -20,16 +21,34 @@ const extractUsername = (input: string): string => {
     return input;
 };
 
+/**
+ * Helper to fetch with timeout
+ */
+const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 5000): Promise<Response> => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+    try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+    } catch (error) {
+        clearTimeout(id);
+        throw error;
+    }
+};
 
 /**
  * Fetches data for a single Kick channel, preserving the original username case.
  * @param originalUsername The Kick username with its intended capitalization.
  * @returns A Promise that resolves to a Channel object.
  */
-const fetchKickChannel = async (originalUsername: string): Promise<Channel> => {
-  const url = `https://kick.com/api/v1/channels/${originalUsername}?_=${Date.now()}`;
+export const fetchKickChannel = async (originalUsername: string): Promise<Channel> => {
+  // Use CORS proxy for the main API call to avoid browser blocks
+  const targetUrl = `https://kick.com/api/v1/channels/${originalUsername}?_=${Date.now()}`;
+  const url = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+  
   try {
-    const response = await fetch(url);
+    const response = await fetchWithTimeout(url, {}, 5000); // 5s timeout
 
     if (response.status === 404) {
        throw new Error(`User not found: ${originalUsername}`);
@@ -52,7 +71,7 @@ const fetchKickChannel = async (originalUsername: string): Promise<Channel> => {
         const videosUrl = `https://kick.com/api/v2/channels/${originalUsername}/videos?_=${Date.now()}`;
         // Using a CORS proxy to bypass client-side fetch restrictions.
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(videosUrl)}`;
-        const videosResponse = await fetch(proxyUrl);
+        const videosResponse = await fetchWithTimeout(proxyUrl, {}, 3000); // Shorter timeout for secondary fetch
         if (videosResponse.ok) {
           const videosData = await videosResponse.json();
           if (videosData && videosData.length > 0 && videosData[0].created_at) {
@@ -91,6 +110,7 @@ const fetchKickChannel = async (originalUsername: string): Promise<Channel> => {
       banner_image: data.banner_image?.url || null,
       live_category: data.livestream?.category?.name || null,
       social_links: socialLinks,
+      isLoading: false,
     };
   } catch (error) {
     console.error(`Failed to fetch data for ${originalUsername}:`, error);
@@ -112,14 +132,14 @@ const fetchKickChannel = async (originalUsername: string): Promise<Channel> => {
       followers_count: null,
       banner_image: null,
       live_category: null,
+      isLoading: false,
     };
   }
 };
 
 /**
  * Fetches statuses for multiple Kick channels in parallel.
- * @param streamers An array of Kick streamer configurations.
- * @returns A Promise that resolves to a KickApiResponse object.
+ * @deprecated Use fetchKickChannel in a loop in App.tsx for better control over rate limits and incremental loading.
  */
 export const fetchChannelStatuses = async (streamers: { username: string; tags: string[]; character: string }[]): Promise<KickApiResponse> => {
   const channelDataPromises = streamers.map(async (streamerConfig) => {
