@@ -21,9 +21,10 @@ import { ShareStreamView, WindowData } from './components/ShareStreamView';
 import { TutorialModal } from './components/TutorialModal';
 
 // --- Intro Animation Component ---
-const IntroAnimation: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
+const IntroAnimation: React.FC<{ onComplete: () => void, progress: number }> = ({ onComplete, progress }) => {
   const [stage, setStage] = useState<'falling' | 'assembled' | 'spinning' | 'opening'>('falling');
   const [pieces, setPieces] = useState<Array<{x: number, y: number, r: number, delay: number, s: number}>>([]);
+  const [userClickedContinue, setUserClickedContinue] = useState(false);
   
   // 8x8 Grid (64 pieces)
   const rows = 8;
@@ -33,39 +34,63 @@ const IntroAnimation: React.FC<{ onComplete: () => void }> = ({ onComplete }) =>
   useEffect(() => {
     // Generate random starting positions for pieces
     const newPieces = Array.from({ length: totalPieces }).map(() => ({
-      x: (Math.random() - 0.5) * window.innerWidth * 1.5, // Explode from wide range
-      y: (Math.random() - 0.5) * window.innerHeight * 1.5,
-      r: (Math.random() - 0.5) * 720, // More rotation
-      delay: Math.random() * 0.5, // Random stagger
-      s: Math.random() * 1.5 + 0.5, // Random scale
+      x: (Math.random() - 0.5) * window.innerWidth * 1.2, 
+      y: (Math.random() - 0.5) * window.innerHeight * 1.2,
+      r: (Math.random() - 0.5) * 360, 
+      delay: Math.random() * 0.3, 
+      s: Math.random() * 2 + 0.5, 
     }));
     setPieces(newPieces);
 
     // Timeline
-    // t1: Start assembling (slower speed)
+    // t1: Start assembling nicely
     const t1 = setTimeout(() => setStage('assembled'), 100); 
     
-    // t2: Start spinning immediately after assembly. 
-    // Assembly transition is ~2.5s + max delay 0.5s = ~3s.
-    // 100ms (start) + 3000ms = 3100ms.
-    const t2 = setTimeout(() => setStage('spinning'), 3100); 
-    
-    // t3: Open curtains after spin (spin takes ~0.8s)
-    const t3 = setTimeout(() => setStage('opening'), 4000); 
-    
-    // t4: Remove component
-    const t4 = setTimeout(() => onComplete(), 5000); 
+    // t2: Start spinning after assembly
+    const t2 = setTimeout(() => setStage('spinning'), 2500); 
 
     return () => {
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4);
+      clearTimeout(t1); clearTimeout(t2);
     };
-  }, [onComplete, totalPieces]);
+  }, [totalPieces]);
+
+  // Logic to trigger opening: either progress is 100 OR user clicked continue
+  useEffect(() => {
+    if (stage === 'opening') return;
+
+    // Auto open if loaded and spinning started (to avoid opening before logo is formed)
+    if (progress >= 100 && (stage === 'assembled' || stage === 'spinning') && !userClickedContinue) {
+        // Add a small delay if it loaded super fast so user sees the logo
+        const delay = stage === 'assembled' ? 2000 : 500;
+        const t = setTimeout(() => setStage('opening'), delay);
+        return () => clearTimeout(t);
+    }
+
+    // Manual open
+    if (userClickedContinue) {
+        setStage('opening');
+    }
+  }, [progress, stage, userClickedContinue]);
+
+  // Cleanup after opening animation finishes
+  useEffect(() => {
+      if (stage === 'opening') {
+          const t = setTimeout(() => {
+              onComplete();
+          }, 1000); // Wait for curtain animation
+          return () => clearTimeout(t);
+      }
+  }, [stage, onComplete]);
+
+  const handleContinue = () => {
+      setUserClickedContinue(true);
+  };
 
   // Image URL
   const logoUrl = "https://i.postimg.cc/g2mhxC8q/vas_AGbotko-OBs.png";
 
   return (
-    <div className={`fixed inset-0 z-[9999] flex items-center justify-center pointer-events-none transition-opacity duration-500 ${stage === 'opening' ? 'bg-transparent' : 'bg-transparent'}`}>
+    <div className={`fixed inset-0 z-[9999] flex items-center justify-center transition-all duration-500 ${stage === 'opening' ? 'pointer-events-none' : ''}`}>
        {/* Left Curtain */}
        <div 
          className={`absolute top-0 left-0 h-full w-1/2 bg-[#141e30] transition-transform duration-1000 ease-[cubic-bezier(0.77,0,0.175,1)] origin-left z-0`}
@@ -77,48 +102,88 @@ const IntroAnimation: React.FC<{ onComplete: () => void }> = ({ onComplete }) =>
          style={{ transform: stage === 'opening' ? 'translateX(100%)' : 'translateX(0)' }}
        />
 
-       {/* Logo Container - Circular Cut */}
+       {/* Content Container */}
        <div 
-          className={`relative z-10 w-64 h-64 transition-all ease-in-out rounded-full overflow-hidden`}
-          style={{ 
-            transform: stage === 'opening' ? 'scale(1.5) opacity(0)' : stage === 'spinning' ? 'rotate(360deg) scale(1.1)' : 'rotate(0deg)',
+         className="relative z-10 flex flex-col items-center justify-center gap-10 transition-all duration-500"
+         style={{ 
             opacity: stage === 'opening' ? 0 : 1,
-            transitionDuration: stage === 'spinning' ? '0.8s' : '1s'
-          }}
+            transform: stage === 'opening' ? 'scale(1.1)' : 'scale(1)'
+         }}
        >
-         {pieces.map((p, i) => {
-            const row = Math.floor(i / cols);
-            const col = i % cols;
-            const width = 100 / cols;
-            const height = 100 / rows;
-            const bgX = (col / (cols - 1)) * 100;
-            const bgY = (row / (rows - 1)) * 100;
+           {/* Logo Container */}
+           <div 
+              className={`relative w-64 h-64 transition-all ease-in-out rounded-full overflow-hidden`}
+              style={{ 
+                transform: stage === 'spinning' ? 'rotate(360deg)' : 'rotate(0deg)',
+                transitionDuration: stage === 'spinning' ? '1.5s' : '0.8s'
+              }}
+           >
+             {pieces.map((p, i) => {
+                const row = Math.floor(i / cols);
+                const col = i % cols;
+                const width = 100 / cols;
+                const height = 100 / rows;
+                const bgX = (col / (cols - 1)) * 100;
+                const bgY = (row / (rows - 1)) * 100;
 
-            const isFalling = stage === 'falling';
+                const isFalling = stage === 'falling';
 
-            return (
-              <div 
-                key={i}
-                className="absolute shadow-sm"
-                style={{
-                  top: `${row * (100 / rows)}%`,
-                  left: `${col * (100 / cols)}%`,
-                  width: `${width}%`,
-                  height: `${height}%`,
-                  backgroundImage: `url(${logoUrl})`,
-                  backgroundSize: `${cols * 100}% ${rows * 100}%`, // Match grid size
-                  backgroundPosition: `${bgX}% ${bgY}%`,
-                  transition: `all 2.5s cubic-bezier(0.25, 1, 0.5, 1)`, // Slower, smoother assembly
-                  transform: isFalling 
-                    ? `translate3d(${p.x}px, ${p.y}px, 0) rotate(${p.r}deg) scale(${p.s})` 
-                    : `translate3d(0, 0, 0) rotate(0deg) scale(1)`,
-                  opacity: isFalling ? 0 : 1,
-                  transitionDelay: isFalling ? `${p.delay}s` : '0s',
-                  willChange: 'transform, opacity'
-                }}
-              />
-            );
-         })}
+                return (
+                  <div 
+                    key={i}
+                    className="absolute shadow-sm"
+                    style={{
+                      top: `${row * (100 / rows)}%`,
+                      left: `${col * (100 / cols)}%`,
+                      width: `${width}%`,
+                      height: `${height}%`,
+                      backgroundImage: `url(${logoUrl})`,
+                      backgroundSize: `${cols * 100}% ${rows * 100}%`,
+                      backgroundPosition: `${bgX}% ${bgY}%`,
+                      // Improved cubic-bezier for "gathering nicely"
+                      transition: `all 2s cubic-bezier(0.34, 1.56, 0.64, 1)`, 
+                      transform: isFalling 
+                        ? `translate3d(${p.x}px, ${p.y}px, 0) rotate(${p.r}deg) scale(${p.s})` 
+                        : `translate3d(0, 0, 0) rotate(0deg) scale(1)`,
+                      opacity: isFalling ? 0 : 1,
+                      transitionDelay: isFalling ? `${p.delay}s` : '0s',
+                      willChange: 'transform, opacity'
+                    }}
+                  />
+                );
+             })}
+           </div>
+
+           {/* Loading Section (Below Logo) */}
+           <div className="flex flex-col items-center gap-6 w-full max-w-xs">
+                {/* Loading Bar */}
+                <div className="w-72 flex flex-col gap-2">
+                    <div className="flex justify-between text-white/80 font-mono text-sm font-bold">
+                        <span>LOADING DATA</span>
+                        <span>{progress}%</span>
+                    </div>
+                    <div className="h-4 w-full bg-gray-900/60 rounded-full border border-white/10 backdrop-blur-sm overflow-hidden shadow-inner">
+                        <div 
+                            className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 shadow-[0_0_15px_rgba(59,130,246,0.6)] transition-all duration-300 ease-out relative" 
+                            style={{ width: `${progress}%` }} 
+                        >
+                            <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Continue Button */}
+                <button
+                    onClick={handleContinue}
+                    className="group relative px-10 py-3 overflow-hidden rounded-[30px] bg-white/5 backdrop-blur-md border border-white/10 text-white font-bold tracking-widest uppercase transition-all duration-300 hover:bg-white/10 hover:border-white/30 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/50"
+                >
+                    <span className="relative z-10 flex items-center gap-2">
+                        Continue
+                        <svg className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </span>
+                    <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent z-0"></div>
+                </button>
+           </div>
        </div>
     </div>
   );
@@ -397,8 +462,11 @@ const App: React.FC = () => {
 
   // Intro State
   const [showIntro, setShowIntro] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
-  const prevStreamerDataRef = useRef<KickApiResponse | null>(null);
+  // Mounted ref to prevent state updates on unmounted component
+  const mountedRef = useRef(true);
+
   // isLoading is mostly managed per-card now, but we keep this for potential global usage if needed
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -443,6 +511,12 @@ const App: React.FC = () => {
 
   // Tutorial Modal State
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const checkVersion = async () => {
@@ -567,12 +641,17 @@ const App: React.FC = () => {
   }, [streamerData]);
 
   const fetchData = useCallback(async () => {
+    if (!mountedRef.current) return;
     setError(null);
     
     // Create a temporary data structure if we don't have one, or use existing to avoid layout shift
     // We do NOT set global isLoading to true, because we want incremental updates
     
+    let processedCount = 0;
+    const totalStreamers = KICK_STREAMERS.length;
+
     const updateState = (updatedChannel: Channel) => {
+        if (!mountedRef.current) return;
         setStreamerData(prevData => {
             if (!prevData) {
                 // Should technically be initialized already, but safe fallback
@@ -608,6 +687,7 @@ const App: React.FC = () => {
 
     // Sequential fetching with delay
     for (const streamerConfig of KICK_STREAMERS) {
+        if (!mountedRef.current) break;
         try {
             // Set individual loading state if not already loaded (optional, depends on UX preference)
             // Here we just fetch. The initial state already has isLoading: true for first load.
@@ -627,25 +707,28 @@ const App: React.FC = () => {
 
         } catch (err) {
             console.error(`Error fetching ${streamerConfig.username}`, err);
-             // Update state with error
-             setStreamerData(prevData => {
-                if(!prevData) return null;
-                const newData = prevData.data.map(item => 
-                     item.username.toLowerCase() === streamerConfig.username.toLowerCase()
-                     ? { ...item, error: true, isLoading: false }
-                     : item
-                );
-                return { ...prevData, data: newData, checked_at: new Date().toISOString() };
-             });
+             // Update state with error but mark as "loaded" for progress bar
+             if (mountedRef.current) {
+                 setStreamerData(prevData => {
+                    if(!prevData) return null;
+                    const newData = prevData.data.map(item => 
+                         item.username.toLowerCase() === streamerConfig.username.toLowerCase()
+                         ? { ...item, error: true, isLoading: false }
+                         : item
+                    );
+                    return { ...prevData, data: newData, checked_at: new Date().toISOString() };
+                 });
+             }
+        }
+        
+        processedCount++;
+        if (mountedRef.current) {
+            setLoadingProgress(Math.floor((processedCount / totalStreamers) * 100));
         }
 
         // Reduced timeout to 10ms for faster loading while keeping sequentiality
         await new Promise(resolve => setTimeout(resolve, 10));
     }
-    
-    // Save to local storage after full cycle (or incrementally if preferred)
-    // We can't easily access the latest state here due to closure, 
-    // but we can rely on a useEffect to sync state to localStorage if needed.
     
   }, [t]);
 
@@ -979,7 +1062,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen w-full transition-colors duration-300 text-black dark:text-white" style={{ color: 'var(--text-body)' }}>
       
-      {showIntro && <IntroAnimation onComplete={() => setShowIntro(false)} />}
+      {showIntro && <IntroAnimation onComplete={() => setShowIntro(false)} progress={loadingProgress} />}
       
       <TutorialModal
         isOpen={isTutorialOpen}
